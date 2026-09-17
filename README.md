@@ -7,17 +7,35 @@
 
 ## 📸 Project Preview
 
-> Chụp màn hình khi app đang chạy (`http://localhost:5173`) rồi bỏ vào `docs/screenshots/`:
+### Sign in
 
-```text
-docs/screenshots/signin.png
-docs/screenshots/dashboard.png
-docs/screenshots/documents.png
-docs/screenshots/document-preview.png
-docs/screenshots/gg drive.png
-docs/screenshots/upload.png
-docs/screenshots/VB đến.png
-```
+![Sign in](docs/screenshots/signin.png)
+
+### Dashboard
+
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Document Management
+
+![Documents](docs/screenshots/documents.png)
+
+### Upload
+
+![Upload](docs/screenshots/upload.png)
+
+### Document Preview
+
+![Document preview](docs/screenshots/document-preview.png)
+
+### Correspondence Management
+
+![Văn bản đến](docs/screenshots/correspondence.png)
+
+![Chi tiết văn bản](docs/screenshots/correspondence-detail.png)
+
+### Google Drive
+
+![Google Drive](docs/screenshots/google-drive.png)
 
 ---
 
