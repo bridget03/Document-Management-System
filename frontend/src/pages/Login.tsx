@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { login, me } from "../services/authApi";
 import { useAuthStore } from "../stores/authStore";
@@ -19,6 +19,8 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [entering, setEntering] = useState(false);
   const nav = useNavigate();
+  const [params] = useSearchParams();
+  const expired = params.get("expired") === "1";
   const qc = useQueryClient();
   const setAuth = useAuthStore((s) => s.setAuth);
 
@@ -80,6 +82,14 @@ export default function Login() {
                 className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600"
               >
                 {error}
+              </p>
+            )}
+            {!error && expired && (
+              <p
+                role="status"
+                className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700"
+              >
+                Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.
               </p>
             )}
             <Field label="Email">
