@@ -10,11 +10,13 @@
 > Chụp màn hình khi app đang chạy (`http://localhost:5173`) rồi bỏ vào `docs/screenshots/`:
 
 ```text
+docs/screenshots/signin.png
 docs/screenshots/dashboard.png
 docs/screenshots/documents.png
 docs/screenshots/document-preview.png
 docs/screenshots/gg drive.png
-docs/screenshots/google-drive.png
+docs/screenshots/upload.png
+docs/screenshots/VB đến.png
 ```
 
 ---
