@@ -16,6 +16,7 @@ import { TextInput, TextArea, Select, Field } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import FileTypeIcon from "../components/documents/FileTypeIcon";
 import StatusBadge from "../components/documents/StatusBadge";
+import DocumentViewer from "../components/document-viewer/DocumentViewer";
 import type { Document } from "../types/document";
 
 function InfoRow({
@@ -162,6 +163,10 @@ export default function DocumentDetail() {
           )}
         </div>
       </div>
+
+      <Card className="overflow-hidden">
+        <DocumentViewer doc={data} />
+      </Card>
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <Card className="space-y-4 p-5 xl:col-span-2">

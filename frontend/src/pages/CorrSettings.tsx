@@ -84,13 +84,14 @@ export default function CorrSettings() {
           <Skeleton className="h-9 w-full" />
         </Card>
       ) : (
-        (["OUTGOING", "INCOMING"] as const).map((dir) => {
+        (["OUTGOING", "INCOMING", "INTERNAL"] as const).map((dir) => {
           const c = form[dir];
           if (!c) return null;
+          const label = dir === "OUTGOING" ? "Văn bản đi" : dir === "INCOMING" ? "Văn bản đến" : "Văn bản nội bộ";
           return (
             <Card key={dir} className="p-5">
               <h2 className="text-sm font-semibold text-gray-900">
-                {dir === "OUTGOING" ? "Văn bản đi" : "Văn bản đến"}
+                {label}
               </h2>
               <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label="Số hiện tại">

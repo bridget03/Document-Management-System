@@ -236,6 +236,14 @@ export default function DocTypes() {
           <>
             <Button onClick={() => setModal(null)}>Hủy</Button>
             <Button
+              className="rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
+                      duration-200
+                      hover:bg-slate-700
+                      hover:shadow-md
+                      active:scale-[0.99]
+                      disabled:cursor-not-allowed
+                      disabled:opacity-60
+                    "
               variant="primary"
               loading={save.isPending}
               disabled={!modal?.code.trim() || !modal?.name.trim()}

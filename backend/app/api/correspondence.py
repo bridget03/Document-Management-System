@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_admin
+from app.core.permissions import can_delete_corr, can_edit_corr, can_view_corr
 from app.database.database import get_db
 from app.models.audit_log import AuditLog
 from app.models.correspondence import (
@@ -26,7 +27,7 @@ from app.services import correspondence_service as svc
 
 router = APIRouter(prefix="/correspondence", tags=["correspondence"])
 
-DIRECTIONS = ("INCOMING", "OUTGOING")
+DIRECTIONS = ("INCOMING", "OUTGOING", "INTERNAL")
 SORTS = {"issue_date", "signed_date", "document_number", "created_at", "updated_at"}
 
 
@@ -51,8 +52,19 @@ def _get_or_404(db: Session, direction: str, corr_id: str) -> CorrespondenceDocu
     return doc
 
 
-def _can_delete(user: User, doc: CorrespondenceDocument) -> bool:
-    return user.role == "ADMIN" or (doc.created_by and doc.created_by == user.id)
+def _require_view(user: User, doc: CorrespondenceDocument) -> None:
+    if not can_view_corr(user, doc):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xem văn bản này.")
+
+
+def _require_edit(user: User, doc: CorrespondenceDocument) -> None:
+    if not can_edit_corr(user, doc):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền sửa văn bản này.")
+
+
+def _require_delete(user: User, doc: CorrespondenceDocument) -> None:
+    if not can_delete_corr(user, doc):
+        raise HTTPException(status_code=403, detail="Bạn không có quyền xóa văn bản này.")
 
 
 # ---------- List / search ----------
@@ -96,6 +108,17 @@ def list_outgoing(q: str | None = None, type_id: str | None = None, signer: str 
                  status, date_from, date_to, sort_by, sort_order, page, page_size)
 
 
+@router.get("/internal", response_model=PaginatedCorr)
+def list_internal(q: str | None = None, type_id: str | None = None, signer: str | None = None,
+                  department: str | None = None, security: str | None = None, urgency: str | None = None,
+                  status: str | None = None, date_from: date | None = None, date_to: date | None = None,
+                  sort_by: str = "issue_date", sort_order: str = "desc",
+                  page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
+                  db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _list("INTERNAL", db, user, q, type_id, signer, department, security, urgency,
+                 status, date_from, date_to, sort_by, sort_order, page, page_size)
+
+
 # ---------- CRUD ----------
 
 def _create(direction: str, payload: CorrCreate, db: Session, user: User):
@@ -118,20 +141,35 @@ def create_outgoing(payload: CorrCreate, db: Session = Depends(get_db), user: Us
     return _create("OUTGOING", payload, db, user)
 
 
+@router.post("/internal", response_model=CorrOut)
+def create_internal(payload: CorrCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _create("INTERNAL", payload, db, user)
+
+
 @router.get("/incoming/{corr_id}", response_model=CorrOut)
 def get_incoming(corr_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _get_or_404(db, "INCOMING", corr_id)
+    doc = _get_or_404(db, "INCOMING", corr_id)
+    _require_view(user, doc)
+    return doc
 
 
 @router.get("/outgoing/{corr_id}", response_model=CorrOut)
 def get_outgoing(corr_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _get_or_404(db, "OUTGOING", corr_id)
+    doc = _get_or_404(db, "OUTGOING", corr_id)
+    _require_view(user, doc)
+    return doc
+
+
+@router.get("/internal/{corr_id}", response_model=CorrOut)
+def get_internal(corr_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    doc = _get_or_404(db, "INTERNAL", corr_id)
+    _require_view(user, doc)
+    return doc
 
 
 def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user: User):
     doc = _get_or_404(db, direction, corr_id)
-    if not _can_delete(user, doc):
-        raise HTTPException(status_code=403, detail="Bạn không có quyền sửa văn bản này.")
+    _require_edit(user, doc)
     data = {k: v for k, v in payload.model_dump().items() if v is not None}
     if data:
         data = svc._norm_dates(data)
@@ -176,10 +214,14 @@ def update_outgoing(corr_id: str, payload: CorrUpdate, db: Session = Depends(get
     return _update("OUTGOING", corr_id, payload, db, user)
 
 
+@router.put("/internal/{corr_id}", response_model=CorrOut)
+def update_internal(corr_id: str, payload: CorrUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _update("INTERNAL", corr_id, payload, db, user)
+
+
 def _delete(direction: str, corr_id: str, db: Session, user: User):
     doc = _get_or_404(db, direction, corr_id)
-    if not _can_delete(user, doc):
-        raise HTTPException(status_code=403, detail="Bạn không có quyền xóa văn bản này.")
+    _require_delete(user, doc)
     _audit(db, user, "CORR_DELETE", doc.id)
     db.delete(doc)  # attachments/links cascade; physical files in documents are kept
     db.commit()
@@ -196,13 +238,17 @@ def delete_outgoing(corr_id: str, db: Session = Depends(get_db), user: User = De
     return _delete("OUTGOING", corr_id, db, user)
 
 
+@router.delete("/internal/{corr_id}")
+def delete_internal(corr_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _delete("INTERNAL", corr_id, db, user)
+
+
 @router.delete("/{direction}/{corr_id}/attachments/{att_id}")
 def remove_attachment(direction: str, corr_id: str, att_id: str,
                        db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     d = _direction_or_400(direction)
     doc = _get_or_404(db, d, corr_id)
-    if not _can_delete(user, doc):
-        raise HTTPException(status_code=403, detail="Bạn không có quyền sửa văn bản này.")
+    _require_edit(user, doc)
     att = next((a for a in doc.attachments if a.id == att_id), None)
     if not att:
         raise HTTPException(status_code=404, detail="Tệp đính kèm không tồn tại.")
@@ -216,8 +262,7 @@ def remove_link(direction: str, corr_id: str, link_id: str,
                 db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     d = _direction_or_400(direction)
     doc = _get_or_404(db, d, corr_id)
-    if not _can_delete(user, doc):
-        raise HTTPException(status_code=403, detail="Bạn không có quyền sửa văn bản này.")
+    _require_edit(user, doc)
     link = db.query(CorrespondenceLink).filter(
         CorrespondenceLink.id == link_id,
         CorrespondenceLink.correspondence_id == doc.id).first()
@@ -245,6 +290,17 @@ def import_incoming(payload: dict, db: Session = Depends(get_db), user: User = D
 def import_outgoing(payload: dict, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
         result = svc.import_rows(db, "OUTGOING", payload.get("rows") or [], user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    _audit(db, user, "CORR_IMPORT", None)
+    db.commit()
+    return result
+
+
+@router.post("/internal/import", response_model=ImportResult)
+def import_internal(payload: dict, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    try:
+        result = svc.import_rows(db, "INTERNAL", payload.get("rows") or [], user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     _audit(db, user, "CORR_IMPORT", None)

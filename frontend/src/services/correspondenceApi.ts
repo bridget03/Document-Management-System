@@ -1,20 +1,21 @@
 import api from './api';
+import type { ApiDir } from '../types/correspondence';
 
 const base = '/correspondence';
 
-export const corrList = (direction: 'incoming' | 'outgoing', params: Record<string, unknown>) =>
+export const corrList = (direction: ApiDir, params: Record<string, unknown>) =>
   api.get(`${base}/${direction}`, { params }).then((r) => r.data);
 
-export const corrGet = (direction: 'incoming' | 'outgoing', id: string) =>
+export const corrGet = (direction: ApiDir, id: string) =>
   api.get(`${base}/${direction}/${id}`).then((r) => r.data);
 
-export const corrCreate = (direction: 'incoming' | 'outgoing', payload: unknown) =>
+export const corrCreate = (direction: ApiDir, payload: unknown) =>
   api.post(`${base}/${direction}`, payload).then((r) => r.data);
 
-export const corrUpdate = (direction: 'incoming' | 'outgoing', id: string, payload: unknown) =>
+export const corrUpdate = (direction: ApiDir, id: string, payload: unknown) =>
   api.put(`${base}/${direction}/${id}`, payload).then((r) => r.data);
 
-export const corrDelete = (direction: 'incoming' | 'outgoing', id: string) =>
+export const corrDelete = (direction: ApiDir, id: string) =>
   api.delete(`${base}/${direction}/${id}`).then((r) => r.data);
 
 export const corrRemoveAttachment = (direction: string, id: string, attId: string) =>
@@ -23,7 +24,7 @@ export const corrRemoveAttachment = (direction: string, id: string, attId: strin
 export const corrRemoveLink = (direction: string, id: string, linkId: string) =>
   api.delete(`${base}/${direction}/${id}/links/${linkId}`).then((r) => r.data);
 
-export const corrImport = (direction: 'incoming' | 'outgoing', rows: unknown[]) =>
+export const corrImport = (direction: ApiDir, rows: unknown[]) =>
   api.post(`${base}/${direction}/import`, { rows }).then((r) => r.data);
 
 export const listDocTypes = (activeOnly = false) =>

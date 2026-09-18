@@ -31,6 +31,7 @@ import CorrespondenceTable from "../components/correspondence/CorrespondenceTabl
 import ExcelImportModal from "../components/correspondence/ExcelImportModal";
 import {
   STATUS_OPTIONS,
+  DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
 } from "../types/correspondence";
@@ -50,8 +51,9 @@ export default function CorrespondenceList({
   subtitle,
   base,
 }: Props) {
-  const apiDir = direction === "OUTGOING" ? "outgoing" : "incoming";
-  const dirLabel = direction === "OUTGOING" ? "đi" : "đến";
+  const cfg = DIRECTION_CONFIG[direction];
+  const apiDir = cfg.api;
+  const dirLabel = cfg.short;
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeId, setTypeId] = useState("");
@@ -97,9 +99,9 @@ export default function CorrespondenceList({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["corr", direction] });
       setDel(null);
-      toast("success", "Đã xóa văn bản.");
+      toast("success", "Đã xóa công văn.");
     },
-    onError: () => toast("error", "Không xóa được văn bản."),
+    onError: () => toast("error", "Không xóa được công văn."),
   });
 
   const clearAll = () => {
@@ -133,7 +135,7 @@ export default function CorrespondenceList({
                     "
               variant="primary"
             >
-              <Plus size={15} /> Thêm văn bản
+              <Plus size={15} /> Thêm mới công văn
             </Button>
           </Link>
         </div>
@@ -319,7 +321,7 @@ export default function CorrespondenceList({
         }
       >
         <p className="text-sm text-gray-600">
-          Bạn có chắc chắn muốn xóa văn bản “{del?.document_number}”? Hành động
+          Bạn có chắc chắn muốn xóa công văn “{del?.document_number}”? Hành động
           này không thể hoàn tác. Tệp đính kèm gốc vẫn được giữ lại.
         </p>
       </Modal>

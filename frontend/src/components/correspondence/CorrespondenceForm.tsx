@@ -9,6 +9,7 @@ import { listDocTypes, nextNumber } from "../../services/correspondenceApi";
 import {
   LEVEL_OPTIONS,
   STATUS_OPTIONS,
+  DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
   type DocType,
@@ -178,8 +179,12 @@ export default function CorrespondenceForm({
   const submit = (and: "close" | "add" | "open" = "close") => {
     const errs: string[] = [];
     if (!v.document_number.trim()) errs.push("Số văn bản không được để trống.");
-    if (direction === "OUTGOING" && !v.recipient.trim())
-      errs.push("Nơi nhận không được để trống.");
+    if (direction !== "INCOMING" && !v.recipient.trim())
+      errs.push(
+        direction === "INTERNAL"
+          ? "Bộ phận/người nhận không được để trống."
+          : "Nơi nhận không được để trống."
+      );
     if (direction === "INCOMING" && !v.sender.trim())
       errs.push("Nơi gửi không được để trống.");
     if (!v.signer.trim()) errs.push("Vui lòng chọn/nhập người ký.");
@@ -198,8 +203,8 @@ export default function CorrespondenceForm({
     onSubmit(v, and);
   };
 
-  const partyLabel = direction === "OUTGOING" ? "Nơi nhận *" : "Nơi gửi *";
-  const partyKey = direction === "OUTGOING" ? "recipient" : "sender";
+  const partyLabel = DIRECTION_CONFIG[direction].partyLabel;
+  const partyKey = DIRECTION_CONFIG[direction].partyKey;
 
   return (
     <div className="space-y-4">

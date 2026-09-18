@@ -5,6 +5,7 @@ import Badge from "../ui/Badge";
 import {
   STATUS_CONFIG,
   fmtDateVN,
+  DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
 } from "../../types/correspondence";
@@ -23,8 +24,8 @@ export default function CorrespondenceTable({
   onDelete,
 }: Props) {
   const [menuId, setMenuId] = useState<string | null>(null);
-  const party = (d: CorrDoc) =>
-    (dir === "OUTGOING" ? d.recipient : d.sender) || "—";
+  const cfg = DIRECTION_CONFIG[dir];
+  const party = (d: CorrDoc) => d[cfg.partyKey] || "—";
 
   return (
     <div className="overflow-x-auto">
@@ -34,7 +35,7 @@ export default function CorrespondenceTable({
             <th className="px-4 py-2.5 font-medium">Số văn bản</th>
             <th className="px-4 py-2.5 font-medium">Loại</th>
             <th className="px-4 py-2.5 font-medium">
-              {dir === "OUTGOING" ? "Nơi nhận" : "Nơi gửi"}
+              {cfg.partyLabel.replace(" *", "")}
             </th>
             <th className="px-4 py-2.5 font-medium">Người ký</th>
             <th className="px-4 py-2.5 font-medium">Ngày ký</th>

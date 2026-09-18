@@ -7,7 +7,7 @@ import Modal from '../ui/Modal';
 import { useToast } from '../ui/Toast';
 import { corrImport, listDocTypes } from '../../services/correspondenceApi';
 import {
-  EXCEL_HEADERS, normalizeExcelRow, validateRowClient,
+  EXCEL_HEADERS, normalizeExcelRow, validateRowClient, DIRECTION_CONFIG,
   type Direction, type DocType,
 } from '../../types/correspondence';
 
@@ -28,11 +28,15 @@ interface ParsedRow {
 const MAX_ROWS = 500;
 
 function downloadTemplate(direction: Direction) {
-  const party = direction === 'OUTGOING' ? 'Nơi nhận mẫu' : undefined;
+  const cfg = DIRECTION_CONFIG[direction];
+  // Template nội bộ dùng cột "Bộ phận/người nhận" thay cho "Nơi nhận".
+  const headers = EXCEL_HEADERS.map((h) =>
+    h.header === 'Nơi nhận' && direction === 'INTERNAL' ? 'Bộ phận/người nhận' : h.header);
   const sample: Record<string, unknown> = {
     'Số văn bản': 'CV001/2026/VICENZA',
-    'Nơi nhận': direction === 'OUTGOING' ? 'Công ty ABC' : undefined,
-    'Nơi gửi': direction === 'INCOMING' ? 'Sở XYZ' : undefined,
+    'Nơi nhận': direction === 'INCOMING' ? undefined : cfg.sampleParty,
+    'Bộ phận/người nhận': direction === 'INTERNAL' ? cfg.sampleParty : undefined,
+    'Nơi gửi': direction === 'INCOMING' ? cfg.sampleParty : undefined,
     'Số lượng văn bản': 1,
     'Người ký': 'Nguyễn Văn A',
     'Mức độ bảo mật': 'Trung bình',
@@ -47,12 +51,11 @@ function downloadTemplate(direction: Direction) {
     'Ghi chú': '',
     'Liên kết tệp': '',
   };
-  void party;
-  const ws = XLSX.utils.json_to_sheet([sample], { header: EXCEL_HEADERS.map((h) => h.header) });
+  const ws = XLSX.utils.json_to_sheet([sample], { header: headers });
   ws['!cols'] = EXCEL_HEADERS.map(() => ({ wch: 22 }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'VanBan');
-  XLSX.writeFile(wb, direction === 'OUTGOING' ? 'Mau_nhap_van_ban_di.xlsx' : 'Mau_nhap_van_ban_den.xlsx');
+  XLSX.writeFile(wb, DIRECTION_CONFIG[direction].templateFile);
 }
 
 export default function ExcelImportModal({ open, onClose, direction, dirLabel, onImported }: Props) {
@@ -136,7 +139,7 @@ export default function ExcelImportModal({ open, onClose, direction, dirLabel, o
         delete d.document_type;
         return d;
       });
-      const res = await corrImport(direction === 'OUTGOING' ? 'outgoing' : 'incoming', payload);
+      const res = await corrImport(DIRECTION_CONFIG[direction].api, payload);
       setResult(res);
       setPhase('result');
       onImported();
@@ -217,7 +220,7 @@ export default function ExcelImportModal({ open, onClose, direction, dirLabel, o
                 <tr className="text-left text-xs text-gray-500">
                   <th className="px-3 py-2 font-medium">Dòng</th>
                   <th className="px-3 py-2 font-medium">Số văn bản</th>
-                  <th className="px-3 py-2 font-medium">{direction === 'OUTGOING' ? 'Nơi nhận' : 'Nơi gửi'}</th>
+                  <th className="px-3 py-2 font-medium">{DIRECTION_CONFIG[direction].partyLabel.replace(' *', '')}</th>
                   <th className="px-3 py-2 font-medium">Người ký</th>
                   <th className="px-3 py-2 font-medium">Trạng thái</th>
                 </tr>
@@ -227,7 +230,7 @@ export default function ExcelImportModal({ open, onClose, direction, dirLabel, o
                   <tr key={r.index} className={r.errors.length > 0 ? 'bg-red-50' : ''}>
                     <td className="px-3 py-1.5 text-gray-500">{r.index}</td>
                     <td className="px-3 py-1.5">{String(r.data.document_number || '—')}</td>
-                    <td className="px-3 py-1.5">{String((r.data as Record<string, unknown>)[direction === 'OUTGOING' ? 'recipient' : 'sender'] || '—')}</td>
+                    <td className="px-3 py-1.5">{String((r.data as Record<string, unknown>)[DIRECTION_CONFIG[direction].partyKey] || '—')}</td>
                     <td className="px-3 py-1.5">{String(r.data.signer || '—')}</td>
                     <td className="px-3 py-1.5 text-xs">
                       {r.errors.length === 0

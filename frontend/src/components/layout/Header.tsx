@@ -19,8 +19,10 @@ function useCrumbs(): string[] {
   const { pathname } = useLocation();
   if (pathname.startsWith('/correspondence/incoming/')) return ['Văn bản đến', 'Chi tiết'];
   if (pathname.startsWith('/correspondence/outgoing/')) return ['Văn bản đi', 'Chi tiết'];
+  if (pathname.startsWith('/correspondence/internal/')) return ['Văn bản nội bộ', 'Chi tiết'];
   if (pathname === '/correspondence/incoming') return ['Quản lý công văn', 'Văn bản đến'];
   if (pathname === '/correspondence/outgoing') return ['Quản lý công văn', 'Văn bản đi'];
+  if (pathname === '/correspondence/internal') return ['Quản lý công văn', 'Văn bản nội bộ'];
   if (pathname === '/correspondence/types') return ['Cấu hình', 'Loại văn bản'];
   if (pathname === '/correspondence/settings') return ['Cấu hình', 'Cấu hình văn bản'];
   if (pathname.startsWith('/documents/') && pathname.endsWith('/preview')) return ['Documents', 'Detail', 'Preview'];

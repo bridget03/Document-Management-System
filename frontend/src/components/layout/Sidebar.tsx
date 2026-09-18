@@ -9,6 +9,7 @@ import {
   LogOut,
   Inbox,
   Send,
+  Building2,
   BookMarked,
   Settings,
 } from "lucide-react";
@@ -47,13 +48,18 @@ const groups: {
     items: [
       {
         to: "/correspondence/incoming",
-        label: "Văn bản đến",
+        label: "Công văn đến",
         icon: <Inbox size={17} />,
       },
       {
         to: "/correspondence/outgoing",
         label: "Văn bản đi",
         icon: <Send size={17} />,
+      },
+      {
+        to: "/correspondence/internal",
+        label: "Văn bản nội bộ",
+        icon: <Building2 size={17} />,
       },
     ],
   },
@@ -62,12 +68,12 @@ const groups: {
     items: [
       {
         to: "/correspondence/types",
-        label: "Loại văn bản",
+        label: "Loại công văn",
         icon: <BookMarked size={17} />,
       },
       {
         to: "/correspondence/settings",
-        label: "Cấu hình văn bản",
+        label: "Cấu hình công văn",
         icon: <Settings size={17} />,
       },
     ],

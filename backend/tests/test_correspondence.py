@@ -161,3 +161,111 @@ def test_delete_permission_and_attachments_kept():
     # staff deletes own -> physical file kept
     assert c.delete(f"/api/correspondence/outgoing/{cid}", headers=hs).status_code == 200
     assert c.get(f"/api/documents/{did}/download", headers=ha).status_code == 200
+
+
+def test_internal_crud_search_import():
+    c, h = get_client(), login(get_client())
+    t = make_type(c, h)
+    # missing internal recipient -> 400
+    bad = {"document_number": "NB001", "signer": "A",
+           "document_type_id": t["id"], "issuing_department": "HC"}
+    assert c.post("/api/correspondence/internal", headers=h, json=bad).status_code == 400
+    # create with Bộ phận/người nhận, sender optional
+    good = {**bad, "recipient": "Phòng Kế toán"}
+    r = c.post("/api/correspondence/internal", headers=h, json=good)
+    assert r.status_code == 200, r.text
+    cid = r.json()["id"]
+    assert r.json()["direction"] == "INTERNAL"
+    # same number allowed in other directions (isolated uniqueness)
+    assert c.post("/api/correspondence/outgoing", headers=h, json={
+        **base_out(t["id"]), "document_number": "NB001"}).status_code == 200
+    # get / search / filter / update / delete
+    assert c.get(f"/api/correspondence/internal/{cid}", headers=h).status_code == 200
+    r = c.get("/api/correspondence/internal", headers=h, params={"q": "kế toán"})
+    assert r.json()["total"] == 1
+    r = c.put(f"/api/correspondence/internal/{cid}", headers=h, json={"processing_status": "APPROVED"})
+    assert r.status_code == 200 and r.json()["processing_status"] == "APPROVED"
+    # import with one bad row
+    r = c.post("/api/correspondence/internal/import", headers=h, json={"rows": [
+        {"document_number": "NB002", "recipient": "Phòng HC", "signer": "B",
+         "document_type_id": t["id"], "issuing_department": "HC"},
+        {"document_number": "", "recipient": "Phòng HC", "signer": "B",
+         "document_type_id": t["id"], "issuing_department": "HC"},
+    ]})
+    assert r.json()["success"] == 1 and r.json()["failed"] == 1
+    assert c.delete(f"/api/correspondence/internal/{cid}", headers=h).status_code == 200
+    # numbering config exists for INTERNAL
+    r = c.get("/api/correspondence/next-number", headers=h, params={"direction": "INTERNAL"})
+    assert r.status_code == 200 and "next_number" in r.json()
+
+
+def test_phase_permissions_no_doc_or_dept_scoping():
+    """Phase rule: any authed user reads/creates everything; edit/delete = owner|ADMIN.
+    Document-level and department-level restrictions must NOT exist yet."""
+    from app.core.permissions import (
+        can_create_corr, can_delete_corr, can_edit_corr,
+        can_manage_corr_config, can_view_corr,
+    )
+    c = get_client()
+    ha, hs = login(c), login(c, "staff@test.com", "staff123")
+    t = make_type(c, ha)
+    assert can_view_corr(object()) is True
+    assert can_create_corr(object(), "INTERNAL") is True
+
+    class FakeUser:
+        def __init__(self, role, uid):
+            self.role, self.id = role, uid
+
+    assert can_manage_corr_config(FakeUser("USER", "u1")) is False
+    assert can_manage_corr_config(FakeUser("ADMIN", "a")) is True
+
+    admin, staff, other = FakeUser("ADMIN", "a"), FakeUser("USER", "u1"), FakeUser("USER", "u2")
+
+    class FakeDoc:
+        created_by = "u1"
+    assert can_edit_corr(staff, FakeDoc()) is True
+    assert can_edit_corr(other, FakeDoc()) is False
+    assert can_edit_corr(admin, FakeDoc()) is True
+    assert can_delete_corr(other, FakeDoc()) is False
+
+    # staff reads admin's INTERNAL doc (different department) -> allowed
+    r = c.post("/api/correspondence/internal", headers=ha, json={
+        "document_number": "NB-SEC-001", "recipient": "Ban Giám đốc",
+        "signer": "GĐ", "document_type_id": t["id"], "issuing_department": "Văn phòng"})
+    assert r.status_code == 200
+    cid = r.json()["id"]
+    assert c.get(f"/api/correspondence/internal/{cid}", headers=hs).status_code == 200
+    assert c.get("/api/correspondence/internal", headers=hs, params={"q": "giám đốc"}).json()["total"] == 1
+    # ...but staff cannot edit/delete it
+    assert c.put(f"/api/correspondence/internal/{cid}", headers=hs, json={"notes": "x"}).status_code == 403
+    assert c.delete(f"/api/correspondence/internal/{cid}", headers=hs).status_code == 403
+    # ...and cannot touch types catalogue
+    assert c.post("/api/correspondence/types", headers=hs, json={"code": "X", "name": "X"}).status_code == 403
+
+
+def test_dashboard_stats():
+    c, h = get_client(), login(get_client())
+    t = make_type(c, h)
+    for i, d in enumerate(["INCOMING", "OUTGOING", "INTERNAL"]):
+        body = base_out(t["id"])
+        body["document_number"] = f"DSH-{i}"
+        if d == "INCOMING":
+            body["sender"] = "Sở A"
+        else:
+            body["recipient"] = "Phòng A"
+        path = {"INCOMING": "incoming", "OUTGOING": "outgoing", "INTERNAL": "internal"}[d]
+        assert c.post(f"/api/correspondence/{path}", headers=h, json=body).status_code == 200
+    # unauthenticated -> 401
+    assert c.get("/api/dashboard/stats").status_code == 401
+    r = c.get("/api/dashboard/stats", headers=h)
+    assert r.status_code == 200, r.text
+    s = r.json()
+    assert s["overview"]["incoming"] == 1 and s["overview"]["outgoing"] == 1 and s["overview"]["internal"] == 1
+    assert s["overview"]["total_documents"] >= 0
+    assert sum(p["incoming"] for p in s["trend"]) == 1
+    assert any(p["status"] == "DRAFT" for p in s["processing_status"])
+    assert any(t["code"] == "CV01" for t in s["document_types"])
+    assert s["top_recipients"] and s["top_senders"]
+    # custom range with no data -> empty trend, still 200
+    r = c.get("/api/dashboard/stats", headers=h, params={"from_date": "2000-01-01", "to_date": "2000-01-31"})
+    assert r.status_code == 200 and r.json()["trend"] == []

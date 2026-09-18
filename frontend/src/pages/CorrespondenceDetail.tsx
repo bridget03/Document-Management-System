@@ -22,6 +22,7 @@ import {
   STATUS_CONFIG,
   LEVEL_LABELS,
   fmtDateVN,
+  DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
 } from "../types/correspondence";
@@ -53,7 +54,7 @@ export default function CorrespondenceDetail({
   base,
 }: Props) {
   const { id } = useParams();
-  const apiDir = direction === "OUTGOING" ? "outgoing" : "incoming";
+  const apiDir = DIRECTION_CONFIG[direction].api;
   const nav = useNavigate();
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -115,8 +116,8 @@ export default function CorrespondenceDetail({
     label: data.processing_status,
     tone: "neutral" as const,
   };
-  const partyLabel = direction === "OUTGOING" ? "Nơi nhận" : "Nơi gửi";
-  const party = direction === "OUTGOING" ? data.recipient : data.sender;
+  const partyLabel = DIRECTION_CONFIG[direction].partyLabel.replace(" *", "");
+  const party = data[DIRECTION_CONFIG[direction].partyKey];
 
   return (
     <div className="space-y-4">

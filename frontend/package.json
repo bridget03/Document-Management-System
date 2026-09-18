@@ -17,6 +17,7 @@
     "react-dom": "^18.3.0",
     "react-pdf": "^9.2.1",
     "react-router-dom": "^6.23.0",
+    "recharts": "^3.10.1",
     "xlsx": "^0.18.5",
     "zustand": "^4.5.0"
   },

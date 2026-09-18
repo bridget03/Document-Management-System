@@ -18,6 +18,7 @@ from app.api.categories import router as cats_router
 from app.api.tags import router as tags_router
 from app.api.google_drive import router as drive_router
 from app.api.correspondence import router as corr_router
+from app.api.dashboard import router as dashboard_router
 from app.core.security import hash_password
 
 logger = logging.getLogger(__name__)
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(tags_router, prefix="/api")
     app.include_router(drive_router, prefix="/api")
     app.include_router(corr_router, prefix="/api")
+    app.include_router(dashboard_router, prefix="/api")
     return app
 
 

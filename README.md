@@ -1,8 +1,7 @@
 # 📁 Document Management System (DMS)
 
 > **Hệ thống quản lý tài liệu & công văn điện tử**
-
-> Quản lý tập trung tài liệu, công văn đến/đi, tệp đính kèm, phân loại, tìm kiếm và đồng bộ Google Drive.
+> Quản lý tập trung tài liệu, công văn đến/đi/nội bộ, tệp đính kèm, phân loại, tìm kiếm và đồng bộ Google Drive.
 
 ---
 
@@ -42,10 +41,10 @@
 
 ## ✨ Overview
 
-**Document Management System (DMS)** là hệ thống quản lý tài liệu nội bộ: số hóa lưu trữ, tra cứu tài liệu và quản lý công văn đến/đi trong doanh nghiệp.
+**Document Management System (DMS)** là hệ thống quản lý tài liệu nội bộ: số hóa lưu trữ, tra cứu tài liệu và quản lý công văn đến/đi/nội bộ trong doanh nghiệp.
 
 - 📁 Quản lý tài liệu (upload/download/preview/metadata)
-- 📥 Quản lý công văn đến / 📤 công văn đi
+- 📥 Quản lý công văn đến / 📤 công văn đi / 🏢 công văn nội bộ
 - 🏷️ Categories & 🔖 Tags
 - 🔍 Tìm kiếm tiếng Việt (không dấu/có dấu, hoa/thường) + lọc + sắp xếp + phân trang
 - 👁️ Preview trực tuyến (PDF, ảnh, TXT, CSV, XLSX, DOCX, Google Docs gốc)
@@ -60,8 +59,11 @@
 
 ## 1. 📊 Dashboard
 
-- Tổng số tài liệu, categories, file sync từ Drive, file cần chú ý (REMOTE_MISSING)
-- Công văn đến / đi, tài liệu gần đây, sync overview, top categories
+- KPI: tổng tài liệu, công văn đến/đi/nội bộ (số liệu thật từ `GET /api/dashboard/stats`)
+- Bộ lọc thời gian: 7/30 ngày, tháng này, 3/12 tháng, tùy chỉnh — mọi biểu đồ cùng cập nhật
+- Xu hướng công văn (line, 3 chiều), Top nơi gửi/nhận/bộ phận (bar ngang, Top 8)
+- Tình trạng xử lý + bảo mật + khẩn cấp (donut, nhãn tiếng Việt)
+- Loại văn bản (bar ngang Top 10), tài liệu gần đây, sync overview (Recharts)
 
 ## 2. 📁 Document Management
 
@@ -80,7 +82,9 @@ Upload (UUID filename, validate extension/MIME/size ≤100MB) · Download (kèm 
 | Google Docs/Sheets/Slides gốc | ✅ tự export sang PDF                                 |
 | DOC (cũ), ZIP, PPTX, khác     | ⬇️ Download                                           |
 
-## 3. 📥 Công văn đến / 4. 📤 Công văn đi
+## 3. 📥 Công văn đến / 4. 📤 Công văn đi / 5. 🏢 Công văn nội bộ
+
+Công văn nội bộ dùng chung form, bảng, trạng thái, đính kèm, Excel import và loại văn bản với 2 chiều còn lại; trường đối tác là **Bộ phận/người nhận** (bắt buộc), không có Nơi gửi.
 
 Fields: số văn bản (unique theo chiều), nơi gửi/nhận, số lượng, người ký, bảo mật/khẩn cấp (Thấp/TB/Cao), ngày ký/hiệu lực/hết hiệu lực/phát hành, bộ phận phát hành, loại văn bản, tình trạng (`Dự thảo/Đã duyệt/Trình ký/Phát hành`), ghi chú, đính kèm, liên kết, người tạo + ngày tạo/sửa.
 
@@ -239,10 +243,10 @@ DELETE /api/documents/{id}
 GET    /api/documents/{id}/download
 GET    /api/documents/{id}/preview  # inline bytes / JSON unavailable
 
-GET    /api/correspondence/incoming|outgoing      # +q, type_id, signer, department, security, urgency, status, date_from/to
-POST   /api/correspondence/incoming|outgoing
-GET|PUT|DELETE /api/correspondence/incoming|outgoing/{id}
-POST   /api/correspondence/incoming|outgoing/import   # {rows: [...]}
+GET    /api/correspondence/incoming|outgoing|internal      # +q, type_id, signer, department, security, urgency, status, date_from/to
+POST   /api/correspondence/incoming|outgoing|internal
+GET|PUT|DELETE /api/correspondence/incoming|outgoing|internal/{id}
+POST   /api/correspondence/incoming|outgoing|internal/import   # {rows: [...]}
 GET|POST /api/correspondence/types   PUT|DELETE /api/correspondence/types/{id}
 GET    /api/correspondence/settings  PUT /api/correspondence/settings/{direction}
 GET    /api/correspondence/next-number?direction=
@@ -266,7 +270,7 @@ cd frontend && npx tsc --noEmit && npm run build
 
 # 🗺️ Roadmap
 
-Đã xong: auth, documents, preview, search/filter, categories/tags, Drive OAuth + folder/files sync, công văn đến/đi, Excel import, loại văn bản, đánh số, audit cơ bản.
+Đã xong: auth, documents, preview, search/filter, categories/tags, Drive OAuth + folder/files sync, công văn đến/đi/nội bộ, Excel import, loại văn bản, đánh số, audit cơ bản.
 Tiếp theo: full-text search, versioning, approval workflow, e-sign, notifications, báo cáo nâng cao, MinIO/S3, sync 2 chiều.
 
 ---

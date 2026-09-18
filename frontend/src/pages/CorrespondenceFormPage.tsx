@@ -6,6 +6,7 @@ import { corrCreate, corrGet, corrUpdate } from '../services/correspondenceApi';
 import { Card, Skeleton } from '../components/ui/Skeleton';
 import CorrespondenceForm, { type CorrFormValue } from '../components/correspondence/CorrespondenceForm';
 import type { CorrDoc, Direction } from '../types/correspondence';
+import { DIRECTION_CONFIG } from '../types/correspondence';
 
 interface Props {
   direction: Direction;
@@ -43,7 +44,7 @@ function toPayload(v: CorrFormValue) {
 export default function CorrespondenceFormPage({ direction, title, base }: Props) {
   const { id } = useParams();
   const isEdit = !!id;
-  const apiDir = direction === 'OUTGOING' ? 'outgoing' : 'incoming';
+  const apiDir = DIRECTION_CONFIG[direction].api;
   const nav = useNavigate();
   const qc = useQueryClient();
   const [serverError, setServerError] = useState('');

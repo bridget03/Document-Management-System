@@ -2,7 +2,7 @@ from datetime import date, datetime
 from typing import Literal
 from pydantic import BaseModel, field_validator
 
-Direction = Literal["INCOMING", "OUTGOING"]
+Direction = Literal["INCOMING", "OUTGOING", "INTERNAL"]
 DocStatus = Literal["DRAFT", "APPROVED", "PENDING_SIGNATURE", "ISSUED"]
 Level = Literal["LOW", "MEDIUM", "HIGH"]
 TypeStatus = Literal["ACTIVE", "INACTIVE"]

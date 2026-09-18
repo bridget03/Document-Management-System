@@ -1,4 +1,38 @@
-export type Direction = 'INCOMING' | 'OUTGOING';
+export type Direction = 'INCOMING' | 'OUTGOING' | 'INTERNAL';
+export type ApiDir = 'incoming' | 'outgoing' | 'internal';
+
+export interface DirectionConfig {
+  api: ApiDir;
+  /** "Văn bản đến" */
+  title: string;
+  /** "đến" — dùng trong câu ("Nhập văn bản ... từ Excel") */
+  short: string;
+  /** "Nơi gửi *" */
+  partyLabel: string;
+  partyKey: 'recipient' | 'sender';
+  /** Tên file template Excel */
+  templateFile: string;
+  /** Giá trị mẫu cho cột đối tác trong template */
+  sampleParty: string;
+}
+
+export const DIRECTION_CONFIG: Record<Direction, DirectionConfig> = {
+  INCOMING: {
+    api: 'incoming', title: 'Văn bản đến', short: 'đến',
+    partyLabel: 'Nơi gửi *', partyKey: 'sender',
+    templateFile: 'Mau_nhap_van_ban_den.xlsx', sampleParty: 'Sở XYZ',
+  },
+  OUTGOING: {
+    api: 'outgoing', title: 'Văn bản đi', short: 'đi',
+    partyLabel: 'Nơi nhận *', partyKey: 'recipient',
+    templateFile: 'Mau_nhap_van_ban_di.xlsx', sampleParty: 'Công ty ABC',
+  },
+  INTERNAL: {
+    api: 'internal', title: 'Văn bản nội bộ', short: 'nội bộ',
+    partyLabel: 'Bộ phận/người nhận *', partyKey: 'recipient',
+    templateFile: 'Mau_nhap_van_ban_noi_bo.xlsx', sampleParty: 'Phòng Kế toán',
+  },
+};
 
 export interface DocType {
   id: string;
@@ -124,6 +158,11 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
     const v = raw[header];
     if (v !== undefined && v !== null && String(v).trim() !== '') byKey[key] = v;
   }
+  // Alias cho template nội bộ: "Bộ phận/người nhận" -> recipient.
+  const alias = raw['Bộ phận/người nhận'];
+  if (byKey.recipient === undefined && alias !== undefined && alias !== null && String(alias).trim() !== '') {
+    byKey.recipient = alias;
+  }
   const out: Record<string, unknown> = {};
   const str = (v: unknown) => (v === undefined || v === null ? undefined : String(v).trim() || undefined);
   const num = (v: unknown) => {
@@ -140,8 +179,8 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
     return s.slice(0, 10);
   };
   out.document_number = str(byKey.document_number);
-  if (direction === 'OUTGOING') out.recipient = str(byKey.recipient);
-  else out.sender = str(byKey.sender);
+  out.recipient = str(byKey.recipient);
+  out.sender = str(byKey.sender);
   out.quantity = num(byKey.quantity);
   out.signer = str(byKey.signer);
   if (byKey.security_level !== undefined) {
@@ -173,7 +212,8 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
 export function validateRowClient(data: Record<string, unknown>, direction: Direction): string[] {
   const errs: string[] = [];
   if (!data.document_number) errs.push('Số văn bản không được để trống.');
-  if (direction === 'OUTGOING' && !data.recipient) errs.push('Nơi nhận không được để trống.');
+  if (direction !== 'INCOMING' && !data.recipient)
+    errs.push(direction === 'INTERNAL' ? 'Bộ phận/người nhận không được để trống.' : 'Nơi nhận không được để trống.');
   if (direction === 'INCOMING' && !data.sender) errs.push('Nơi gửi không được để trống.');
   if (!data.signer) errs.push('Vui lòng chọn/nhập người ký.');
   if (!data.document_type_id) errs.push('Vui lòng chọn loại văn bản.');

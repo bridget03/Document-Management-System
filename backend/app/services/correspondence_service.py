@@ -59,6 +59,8 @@ def validate_payload(
         errors.append("Nơi nhận không được để trống.")
     if direction == "INCOMING" and not (data.get("sender") or "").strip():
         errors.append("Nơi gửi không được để trống.")
+    if direction == "INTERNAL" and not (data.get("recipient") or "").strip():
+        errors.append("Bộ phận/người nhận không được để trống.")
     if not (data.get("signer") or "").strip():
         errors.append("Vui lòng chọn/nhập người ký.")
     type_id = data.get("document_type_id")
