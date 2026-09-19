@@ -132,7 +132,7 @@ Seed sẵn: PD-Phúc đáp, DD-Đôn đốc/chấn chỉnh/nhắc nhở, GT-Gi�
 # 🛠️ Tech Stack
 
 Frontend: React 18 + TypeScript + Vite + Tailwind + React Router + TanStack Query + Axios + Zustand + Lucide (+ react-pdf/pdfjs, xlsx, mammoth, papaparse).
-Backend: Python + FastAPI + SQLAlchemy + Pydantic + Alembic + JWT (Argon2/bcrypt) + Google API client. DB: **SQLite (dev) / PostgreSQL (deploy)** — schema tự tạo khi start.
+Backend: Python + FastAPI + SQLAlchemy + Pydantic + Alembic + JWT (Argon2/bcrypt) + Google API client. DB: **PostgreSQL** — schema quản lý bằng Alembic (head `0004_internal_numbering`).
 
 ---
 
@@ -147,7 +147,7 @@ DocManageSystem/
 │   │   ├── schemas/        # Pydantic (tách theo module)
 │   │   ├── services/       # document, file_storage, search, google_drive, sync, correspondence
 │   │   ├── core/           # config, security, dependencies
-│   │   ├── database/       # database.py + migrations/versions (0001→0003)
+│   │   ├── database/       # database.py + migrations/versions (0001→0004)
 │   │   └── main.py         # app factory, seed, scheduler
 │   ├── storage/documents/YYYY/MM/   # file vật lý (tên UUID)
 │   ├── tests/              # test_api.py, test_correspondence.py
@@ -171,7 +171,7 @@ DocManageSystem/
 # ⚙️ Installation
 
 ```text
-Node.js >= 20 · Python >= 3.11 · (PostgreSQL >= 15 nếu dùng PG) · Git
+Node.js >= 20 · Python >= 3.11 · PostgreSQL >= 15 · Git
 ```
 
 ## Backend
@@ -181,11 +181,11 @@ cd backend
 python3 -m pip install -r requirements.txt
 ```
 
-Tạo `backend/.env` (dev dùng SQLite, không cần Postgres):
+Tạo `backend/.env` (dùng PostgreSQL):
 
 ```env
 APP_ENV=development
-DATABASE_URL=sqlite:///./dms.db
+DATABASE_URL=postgresql+psycopg2://dms_user:<mat-khau>@localhost:5433/dms
 JWT_SECRET=doi-secret-cua-ban
 STORAGE_PATH=./storage
 CORS_ORIGINS=http://localhost:5173
@@ -194,12 +194,14 @@ GOOGLE_CLIENT_SECRET=
 GOOGLE_REDIRECT_URI=http://localhost:8000/api/google-drive/callback
 ```
 
-> Dùng PostgreSQL: `DATABASE_URL=postgresql://dms:dms@localhost:5432/dms` (+ `pip install psycopg2-binary`).  
+> Cần Postgres đang chạy + `pip install psycopg2-binary`. Tạo DB rồi chạy migration: `alembic upgrade head` (từ thư mục `backend/`).  
+> Muốn dùng SQLite thay thế: `DATABASE_URL=sqlite:///./dms.db` (không cần Postgres).  
 > Kết nối Drive: tạo OAuth client (Web) trong Google Cloud, bật Drive API, thêm tài khoản vào Test users, redirect URI đúng như trên.
 
 Chạy (từ thư mục `backend/`):
 
 ```bash
+alembic upgrade head
 python3 -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
