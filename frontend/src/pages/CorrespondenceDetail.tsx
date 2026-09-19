@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { corrGet, corrDelete } from "../services/correspondenceApi";
 import { downloadViaBlob } from "../services/documentApi";
+import DocumentViewer from "../components/document-viewer/DocumentViewer";
 import { Card, Skeleton } from "../components/ui/Skeleton";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
@@ -156,6 +157,12 @@ export default function CorrespondenceDetail({
           </Button>
         </div>
       </div>
+
+      {data.attachments.length > 0 && (
+        <Card className="p-4 mb-4">
+          <DocumentViewer doc={data.attachments[0].document as any} />
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <Card className="p-5 xl:col-span-2">

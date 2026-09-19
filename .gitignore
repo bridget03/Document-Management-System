@@ -6,3 +6,35 @@ __pycache__/
 test.db
 test_storage/
 storage/documents/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+backend/dms.db
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Storage
+backend/storage/
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Storage
+storage/
