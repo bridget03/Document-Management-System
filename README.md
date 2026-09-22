@@ -229,8 +229,11 @@ Web: `http://localhost:5173` — login `admin@example.com / admin123`
 ## Docker
 
 ```bash
+cp .env.example .env   # điền POSTGRES_PASSWORD + JWT_SECRET (file .env không commit)
 docker compose up --build
 ```
+
+Compose tự dựng Postgres 18 + chạy `alembic upgrade head` trước khi start backend, nên DB trống cũng lên đúng schema. Dữ liệu thật hiện nằm ở container Postgres local (`dms-postgres:5433`); muốn mang sang stack compose thì dump/restore một lần bằng `pg_dump`.
 
 ---
 

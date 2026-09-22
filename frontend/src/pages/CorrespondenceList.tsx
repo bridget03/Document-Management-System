@@ -23,6 +23,7 @@ import {
 import { Card, TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import Button from "../components/ui/Button";
+import { IconButton, LinkButton } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
@@ -59,6 +60,7 @@ export default function CorrespondenceList({
   const [typeId, setTypeId] = useState("");
   const [signer, setSigner] = useState("");
   const [status, setStatus] = useState("");
+  const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [del, setDel] = useState<CorrDoc | null>(null);
@@ -79,15 +81,16 @@ export default function CorrespondenceList({
     queryFn: () => listDocTypes(),
   });
 
-  const filterCount = [typeId, signer, status].filter(Boolean).length;
+  const filterCount = [typeId, signer, status, scope !== "all" ? scope : ""].filter(Boolean).length;
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ["corr", direction, searchQuery, typeId, signer, status, page],
+    queryKey: ["corr", direction, searchQuery, typeId, signer, status, scope, page],
     queryFn: () =>
       corrList(apiDir, {
         q: searchQuery || undefined,
         type_id: typeId || undefined,
         signer: signer || undefined,
         status: status || undefined,
+        scope: scope !== "all" ? scope : undefined,
         page,
         page_size: 20,
       }),
@@ -109,6 +112,7 @@ export default function CorrespondenceList({
     setTypeId("");
     setSigner("");
     setStatus("");
+    setScope("all");
     setPage(1);
   };
 
@@ -124,16 +128,7 @@ export default function CorrespondenceList({
             <Upload size={15} /> Nhập từ Excel
           </Button>
           <Link to={`${base}/new`}>
-            <Button
-              className="w-full h-12 rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-              variant="primary"
+            <Button variant="primary"
             >
               <Plus size={15} /> Thêm mới công văn
             </Button>
@@ -153,13 +148,13 @@ export default function CorrespondenceList({
               onChange={(e) => setSearchInput(e.target.value)}
             />
             {searchInput && (
-              <button
+              <IconButton
+                label="Xóa tìm kiếm"
+                iconSize="sm"
                 onClick={() => setSearchInput("")}
-                className="text-gray-400 hover:text-gray-600"
-                aria-label="Xóa tìm kiếm"
               >
                 <X size={15} />
-              </button>
+              </IconButton>
             )}
           </div>
           <Button
@@ -173,6 +168,19 @@ export default function CorrespondenceList({
               </Badge>
             )}
           </Button>
+          <Select
+            value={scope}
+            onChange={(e) => {
+              setScope(e.target.value);
+              setPage(1);
+            }}
+            className="w-auto"
+            aria-label="Phạm vi"
+          >
+            <option value="all">Tất cả</option>
+            <option value="mine">Của tôi</option>
+            <option value="department">Phòng tôi</option>
+          </Select>
         </div>
         {showFilters && (
           <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 sm:grid-cols-3">
@@ -226,12 +234,9 @@ export default function CorrespondenceList({
         {(filterCount > 0 || searchQuery) && (
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <span>{filterCount} bộ lọc đang dùng</span>
-            <button
-              onClick={clearAll}
-              className="font-medium text-brand-700 hover:text-brand-800"
-            >
+            <LinkButton onClick={clearAll}>
               Xóa bộ lọc
-            </button>
+            </LinkButton>
           </div>
         )}
       </Card>

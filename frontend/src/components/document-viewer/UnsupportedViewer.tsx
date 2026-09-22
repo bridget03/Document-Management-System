@@ -1,5 +1,6 @@
 import { FileWarning, Download, ExternalLink } from 'lucide-react';
 import { downloadViaBlob } from '../../services/documentApi';
+import Button from '../ui/Button';
 
 interface Props {
   docId: string;
@@ -26,12 +27,12 @@ export default function UnsupportedViewer({ docId, fileName, driveUrl }: Props) 
             <ExternalLink size={14} /> Open in Google Drive
           </a>
         )}
-        <button
+        <Button
+          variant="primary"
           onClick={() => void downloadViaBlob(docId, fileName)}
-          className="bg-blue-600 text-white px-4 py-2 rounded text-sm flex items-center gap-1"
         >
           <Download size={14} /> Download
-        </button>
+        </Button>
       </div>
     </div>
   );

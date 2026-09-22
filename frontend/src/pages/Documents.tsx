@@ -27,6 +27,7 @@ import api from "../services/api";
 import { Card, TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import Button from "../components/ui/Button";
+import { IconButton, LinkButton, MenuItem } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
@@ -77,6 +78,7 @@ export default function Documents() {
   const [categoryId, setCategoryId] = useState("");
   const [tagId, setTagId] = useState("");
   const [syncStatus, setSyncStatus] = useState("");
+  const [scope, setScope] = useState("all");
   const [sort, setSort] = useState("created_desc");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
@@ -103,7 +105,7 @@ export default function Documents() {
   }, [searchInput]);
 
   const sortCfg = SORTS.find((s) => s.value === sort) || SORTS[0];
-  const filterCount = [fileExt, source, categoryId, tagId, syncStatus].filter(
+  const filterCount = [fileExt, source, categoryId, tagId, syncStatus, scope !== "all" ? scope : ""].filter(
     Boolean,
   ).length;
 
@@ -116,6 +118,7 @@ export default function Documents() {
       categoryId,
       tagId,
       syncStatus,
+      scope,
       sort,
       page,
     ],
@@ -127,6 +130,7 @@ export default function Documents() {
         category_id: categoryId || undefined,
         tag_id: tagId || undefined,
         sync_status: syncStatus || undefined,
+        scope: scope !== "all" ? scope : undefined,
         sort_by: sortCfg.sort_by,
         sort_order: sortCfg.sort_order,
         page,
@@ -203,14 +207,13 @@ export default function Documents() {
               onChange={(e) => setSearchInput(e.target.value)}
             />
             {searchInput && (
-              <button
+              <IconButton
+                label="Clear search"
+                iconSize="sm"
                 onClick={() => setSearchInput("")}
-                className="text-gray-400 hover:text-gray-600"
-                title="Clear search"
-                aria-label="Clear search"
               >
                 <X size={15} />
-              </button>
+              </IconButton>
             )}
           </div>
           <Button
@@ -224,6 +227,19 @@ export default function Documents() {
               </Badge>
             )}
           </Button>
+          <Select
+            value={scope}
+            onChange={(e) => {
+              setScope(e.target.value);
+              setPage(1);
+            }}
+            className="w-auto"
+            aria-label="Phạm vi"
+          >
+            <option value="all">Tất cả</option>
+            <option value="mine">Của tôi</option>
+            <option value="department">Phòng tôi</option>
+          </Select>
           <Select
             value={sort}
             onChange={(e) => setSort(e.target.value)}
@@ -306,12 +322,9 @@ export default function Documents() {
                 ? `${filterCount} filter${filterCount === 1 ? "" : "s"} applied`
                 : `Results for “${searchQuery}”`}
             </span>
-            <button
-              onClick={clearAll}
-              className="font-medium text-brand-700 hover:text-brand-800"
-            >
+            <LinkButton onClick={clearAll}>
               Clear all
-            </button>
+            </LinkButton>
           </div>
         )}
       </Card>
@@ -406,16 +419,15 @@ export default function Documents() {
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="relative inline-block">
-                        <button
+                        <IconButton
+                          label={`Actions for ${d.name}`}
+                          aria-expanded={menuId === d.id}
                           onClick={() =>
                             setMenuId(menuId === d.id ? null : d.id)
                           }
-                          className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-                          aria-label={`Actions for ${d.name}`}
-                          aria-expanded={menuId === d.id}
                         >
                           <MoreHorizontal size={17} />
-                        </button>
+                        </IconButton>
                         {menuId === d.id && (
                           <>
                             <div
@@ -430,8 +442,7 @@ export default function Documents() {
                               >
                                 <Eye size={14} /> Preview
                               </Link>
-                              <button
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                              <MenuItem
                                 onClick={() => {
                                   setMenuId(null);
                                   downloadViaBlob(
@@ -447,16 +458,16 @@ export default function Documents() {
                                 }}
                               >
                                 <Download size={14} /> Download
-                              </button>
-                              <button
-                                className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                              </MenuItem>
+                              <MenuItem
+                                tone="danger"
                                 onClick={() => {
                                   setMenuId(null);
                                   setDeleteId(d.id);
                                 }}
                               >
                                 <Trash2 size={14} /> Delete
-                              </button>
+                              </MenuItem>
                             </div>
                           </>
                         )}
@@ -500,16 +511,7 @@ export default function Documents() {
         footer={
           <>
             <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button
-              className="bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-              loading={del.isPending}
+            <Button variant="primary" loading={del.isPending}
               onClick={() => deleteId && del.mutate(deleteId)}
             >
               Delete

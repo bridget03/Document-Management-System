@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 
 class LoginRequest(BaseModel):
@@ -12,6 +12,7 @@ class UserOut(BaseModel):
     email: str
     role: str
     is_active: bool
+    department: str | None = None
 
     class Config:
         from_attributes = True
@@ -28,3 +29,18 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str = "USER"
+    department: str | None = None
+
+    @field_validator("password")
+    @classmethod
+    def _password_len(cls, v: str) -> str:
+        if len(v) < 6:
+            raise ValueError("Mật khẩu phải có ít nhất 6 ký tự.")
+        return v
+
+
+class UserUpdate(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    is_active: bool | None = None
+    department: str | None = None

@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -16,6 +16,8 @@ from app.schemas.google_drive import (
     SyncFilesRequest,
     SyncLogOut,
 )
+from app.services.audit_service import log as audit_log
+from app.services.token_crypto import protect_token, reveal_token
 from app.services.google_drive_service import browse_items, build_drive_service, get_oauth_flow
 from app.services.sync_service import get_sync_batch, is_sync_running, run_sync, sync_scope_of
 
@@ -29,7 +31,7 @@ def _active_config(db: Session) -> GoogleDriveConfig | None:
 def _require_drive_service(cfg: GoogleDriveConfig):
     if not cfg or not cfg.access_token:
         raise HTTPException(status_code=400, detail="Google Drive not connected")
-    return build_drive_service(cfg.access_token, cfg.refresh_token or "")
+    return build_drive_service(reveal_token(cfg.access_token) or "", reveal_token(cfg.refresh_token) or "")
 
 
 @router.get("/auth")
@@ -47,8 +49,8 @@ def drive_callback(code: str, db: Session = Depends(get_db)):
     flow.fetch_token(code=code)
     creds = flow.credentials
     cfg = _active_config(db) or GoogleDriveConfig()
-    cfg.access_token = creds.token
-    cfg.refresh_token = creds.refresh_token or cfg.refresh_token
+    cfg.access_token = protect_token(creds.token)
+    cfg.refresh_token = protect_token(creds.refresh_token) or cfg.refresh_token
     if creds.expiry:
         cfg.token_expires_at = creds.expiry.replace(tzinfo=None)
     cfg.is_active = True
@@ -157,7 +159,7 @@ def remove_sync_file(drive_file_id: str, db: Session = Depends(get_db), admin: U
 
 
 @router.post("/config", response_model=DriveStatus)
-def save_config(payload: DriveConfigRequest, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def save_config(payload: DriveConfigRequest, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     cfg = _active_config(db) or GoogleDriveConfig(is_active=True)
     if payload.folder_id is not None:
         cfg.folder_id = payload.folder_id
@@ -179,6 +181,7 @@ def save_config(payload: DriveConfigRequest, db: Session = Depends(get_db), admi
         count = db.query(GoogleDriveSyncFile).filter(GoogleDriveSyncFile.config_id == cfg.id).count()
         if count == 0:
             raise HTTPException(status_code=400, detail="Please select at least one file.")
+    audit_log(db, admin.id, "DRIVE_CONFIG", request=request)
     db.commit()
     selected = db.query(GoogleDriveSyncFile).filter(GoogleDriveSyncFile.config_id == cfg.id).count()
     return {
@@ -191,7 +194,7 @@ def save_config(payload: DriveConfigRequest, db: Session = Depends(get_db), admi
 
 
 @router.post("/sync")
-def trigger_sync(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def trigger_sync(request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     cfg = _active_config(db)
     if not cfg:
         raise HTTPException(status_code=400, detail="Google Drive not connected")
@@ -207,6 +210,8 @@ def trigger_sync(db: Session = Depends(get_db), admin: User = Depends(require_ad
         db.commit()
         raise HTTPException(status_code=500, detail=f"Drive API error: {e}")
     log = run_sync(db, cfg, drive_files, scope_file_ids=scope_ids)
+    audit_log(db, admin.id, "DRIVE_SYNC", request=request)
+    db.commit()
     return {"success": True, "log_id": log.id, "total": log.total_files, "created": log.created_files, "updated": log.updated_files, "failed": log.failed_files}
 
 

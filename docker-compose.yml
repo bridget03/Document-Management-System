@@ -1,20 +1,29 @@
 services:
   postgres:
-    image: postgres:16
+    # Khớp setup đang chạy thật: postgres:18, user dms_user, db dms, port 5433.
+    image: postgres:18
     environment:
-      POSTGRES_USER: dms
-      POSTGRES_PASSWORD: dms
-      POSTGRES_DB: dms
+      POSTGRES_USER: ${POSTGRES_USER:-dms_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Hãy đặt POSTGRES_PASSWORD trong file .env ở thư mục gốc (cùng mật khẩu DATABASE_URL của backend)}
+      POSTGRES_DB: ${POSTGRES_DB:-dms}
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dms_user} -d ${POSTGRES_DB:-dms}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
   backend:
     build: ./backend
+    # Chạy migration trước rồi mới start app -> DB trống cũng tự lên đúng schema head.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     environment:
-      DATABASE_URL: postgresql://dms:dms@postgres:5432/dms
-      JWT_SECRET: ${JWT_SECRET:-change-me}
+      APP_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dms_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dms}
+      JWT_SECRET: ${JWT_SECRET:?Hãy đặt JWT_SECRET trong file .env ở thư mục gốc}
       STORAGE_PATH: /data/storage
       CORS_ORIGINS: http://localhost:5173
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
@@ -25,7 +34,9 @@ services:
     volumes:
       - document-storage:/data/storage
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
 
   frontend:
     build: ./frontend

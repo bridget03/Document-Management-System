@@ -36,6 +36,8 @@ function toPayload(v: CorrFormValue) {
     document_type_id: v.document_type_id || undefined,
     processing_status: v.processing_status,
     notes: v.notes.trim() || undefined,
+    visibility: v.visibility || undefined,
+    department: v.department.trim() || undefined,
     attachment_ids: v.attachment_ids.map((a) => a.document_id),
     links,
   };

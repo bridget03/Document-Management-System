@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { Download, FileSpreadsheet, X } from "lucide-react";
 import Button from "../ui/Button";
+import { LinkButton } from "../ui/Button";
 import Modal from "../ui/Modal";
 import { useToast } from "../ui/Toast";
 import { corrImport, listDocTypes } from "../../services/correspondenceApi";
@@ -217,16 +218,7 @@ export default function ExcelImportModal({
         phase === "preview" ? (
           <>
             <Button onClick={close}>Hủy</Button>
-            <Button
-              className="rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-              variant="primary"
+            <Button variant="primary"
               loading={importing}
               disabled={validCount === 0}
               onClick={confirm}
@@ -326,12 +318,9 @@ export default function ExcelImportModal({
               </tbody>
             </table>
           </div>
-          <button
-            onClick={reset}
-            className="flex items-center gap-1 text-xs text-gray-500 underline"
-          >
+          <LinkButton tone="muted" underline onClick={reset} className="flex items-center gap-1">
             <X size={12} /> Chọn file khác
-          </button>
+          </LinkButton>
         </div>
       )}
 

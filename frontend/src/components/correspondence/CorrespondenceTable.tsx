@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import Badge from "../ui/Badge";
+import { IconButton, MenuItem } from "../ui/Button";
 import {
   STATUS_CONFIG,
   fmtDateVN,
@@ -80,14 +81,13 @@ export default function CorrespondenceTable({
                 </td>
                 <td className="px-4 py-2.5 text-right">
                   <div className="relative inline-block">
-                    <button
-                      onClick={() => setMenuId(menuId === d.id ? null : d.id)}
-                      className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-                      aria-label={`Actions for ${d.document_number}`}
+                    <IconButton
+                      label={`Actions for ${d.document_number}`}
                       aria-expanded={menuId === d.id}
+                      onClick={() => setMenuId(menuId === d.id ? null : d.id)}
                     >
                       <MoreHorizontal size={17} />
-                    </button>
+                    </IconButton>
                     {menuId === d.id && (
                       <>
                         <div
@@ -109,15 +109,15 @@ export default function CorrespondenceTable({
                           >
                             <Pencil size={14} /> Chỉnh sửa
                           </Link>
-                          <button
-                            className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                          <MenuItem
+                            tone="danger"
                             onClick={() => {
                               setMenuId(null);
                               onDelete(d);
                             }}
                           >
                             <Trash2 size={14} /> Xóa
-                          </button>
+                          </MenuItem>
                         </div>
                       </>
                     )}

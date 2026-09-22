@@ -146,9 +146,11 @@ def get_drive_file_bytes(db, config, file_id: str) -> tuple[bytes, str, str]:
     from googleapiclient.http import MediaIoBaseDownload
     import io as _io
 
+    from app.services.token_crypto import protect_token, reveal_token
+
     creds = Credentials(
-        token=config.access_token,
-        refresh_token=config.refresh_token,
+        token=reveal_token(config.access_token),
+        refresh_token=reveal_token(config.refresh_token),
         token_uri="https://oauth2.googleapis.com/token",
         client_id=settings.GOOGLE_CLIENT_ID,
         client_secret=settings.GOOGLE_CLIENT_SECRET,
@@ -158,7 +160,7 @@ def get_drive_file_bytes(db, config, file_id: str) -> tuple[bytes, str, str]:
         if not creds.refresh_token:
             raise RuntimeError("Google Drive not connected")
         creds.refresh(Request())
-        config.access_token = creds.token
+        config.access_token = protect_token(creds.token)
         if creds.expiry:
             config.token_expires_at = creds.expiry.replace(tzinfo=None)
         db.commit()

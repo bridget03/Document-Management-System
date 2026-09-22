@@ -82,6 +82,11 @@ def validate_payload(
     qty = data.get("quantity")
     if qty is not None and (not isinstance(qty, int) or qty < 0):
         errors.append("Số lượng phải là số nguyên >= 0.")
+    vis = (data.get("visibility") or "ORGANIZATION").upper()
+    if vis not in ("ORGANIZATION", "DEPARTMENT", "PRIVATE"):
+        errors.append("Phạm vi chia sẻ không hợp lệ.")
+    elif vis == "DEPARTMENT" and not (data.get("department") or "").strip():
+        errors.append("Chia sẻ theo phòng ban thì phải chọn phòng ban.")
     eff, exp = data.get("effective_date"), data.get("expiry_date")
     if eff and exp and eff > exp:
         errors.append("Ngày hiệu lực phải trước hoặc bằng ngày hết hiệu lực.")
@@ -108,7 +113,14 @@ def _norm_dates(data: dict) -> dict:
 
 
 def create_document(db: Session, direction: str, data: dict, user_id: str) -> CorrespondenceDocument:
+    from app.models.user import User
+
     data = _norm_dates(data)
+    # Default sharing department to the creator's own department.
+    if (data.get("visibility") or "ORGANIZATION").upper() == "DEPARTMENT" and not (data.get("department") or "").strip():
+        creator = db.query(User).filter(User.id == user_id).first()
+        if creator and creator.department:
+            data["department"] = creator.department
     errors = validate_payload(db, direction, data)
     if errors:
         raise ValueError("; ".join(errors))
@@ -130,11 +142,13 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
         document_type_id=data.get("document_type_id"),
         processing_status=data.get("processing_status") or "DRAFT",
         notes=normalize_text(data.get("notes")) if data.get("notes") else None,
+        visibility=(data.get("visibility") or "ORGANIZATION").upper(),
+        department=(normalize_text((data.get("department") or "").strip()) or None),
         created_by=user_id,
     )
     db.add(doc)
     db.flush()
-    attach_documents(db, doc, data.get("attachment_ids") or [])
+    attach_documents(db, doc, data.get("attachment_ids") or [], viewer_id=user_id)
     replace_links(db, doc, data.get("links") or [])
     # Auto-bump numbering when the used number matches the generated next one.
     cfg = get_or_create_number_config(db, direction)
@@ -145,10 +159,22 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
     return doc
 
 
-def attach_documents(db: Session, doc: CorrespondenceDocument, document_ids: list[str]) -> None:
+def attach_documents(
+    db: Session,
+    doc: CorrespondenceDocument,
+    document_ids: list[str],
+    viewer_id: str | None = None,
+) -> None:
+    from app.core.permissions import can_view_document
+    from app.models.user import User
+
+    viewer = db.query(User).filter(User.id == viewer_id).first() if viewer_id else None
     for did in document_ids or []:
-        if not db.query(Document).filter(Document.id == did).first():
+        target = db.query(Document).filter(Document.id == did).first()
+        if not target:
             raise ValueError(f"Tệp đính kèm không tồn tại: {did}")
+        if viewer is not None and not can_view_document(viewer, target):
+            raise ValueError(f"Bạn không có quyền đính kèm tệp '{target.name}'.")
         if not any(a.document_id == did for a in doc.attachments):
             doc.attachments.append(CorrespondenceAttachment(correspondence_id=doc.id, document_id=did))
 

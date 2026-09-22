@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, Folder, FileText, Search, X } from 'lucide-react';
 import { driveItems, listSyncFiles, saveSyncFiles } from '../../services/googleDriveApi';
 import type { DriveItem, SyncFile } from '../../types/document';
+import Button, { IconButton, LinkButton, ToolButton } from '../ui/Button';
 
 interface Crumb {
   id: string | null;
@@ -125,26 +126,26 @@ export default function FileBrowserModal({ open, onClose }: Props) {
       <div className="bg-white rounded shadow-lg w-full max-w-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="font-bold">Select files from Google Drive</h2>
-          <button onClick={onClose} className="text-gray-500"><X size={18} /></button>
+          <IconButton label="Close" onClick={onClose}><X size={18} /></IconButton>
         </div>
 
         <div className="p-3 border-b space-y-2">
           <div className="flex items-center gap-1 text-sm flex-wrap">
             {stack.length > 1 && (
-              <button onClick={() => setStack((s) => s.slice(0, -1))} className="border rounded px-2 py-1 flex items-center gap-1">
+              <ToolButton onClick={() => setStack((s) => s.slice(0, -1))}>
                 <ArrowLeft size={14} /> Back
-              </button>
+              </ToolButton>
             )}
             {stack.map((c, i) => (
               <span key={i} className="flex items-center gap-1">
                 {i > 0 && <span className="text-gray-400">/</span>}
-                <button
+                <LinkButton
                   disabled={i === stack.length - 1}
                   onClick={() => setStack((s) => s.slice(0, i + 1))}
-                  className={`px-1 ${i === stack.length - 1 ? 'font-semibold' : 'text-blue-600 underline'}`}
+                  className={`px-1 ${i === stack.length - 1 ? 'font-semibold text-gray-900 no-underline' : ''}`}
                 >
                   {c.name}
-                </button>
+                </LinkButton>
               </span>
             ))}
           </div>
@@ -159,7 +160,7 @@ export default function FileBrowserModal({ open, onClose }: Props) {
           {isError && (
             <div className="p-6 text-center space-y-2">
               <p className="text-sm text-red-600">Unable to load Google Drive files.</p>
-              <button onClick={() => refetch()} className="text-sm border rounded px-3 py-1">Retry</button>
+              <ToolButton onClick={() => refetch()}>Retry</ToolButton>
             </div>
           )}
           {!isLoading && !isError && folders.length === 0 && files.length === 0 && (
@@ -198,14 +199,14 @@ export default function FileBrowserModal({ open, onClose }: Props) {
         <div className="p-4 border-t flex items-center justify-between gap-2">
           <p className="text-sm text-gray-600">Selected: {picked.size} file{picked.size === 1 ? '' : 's'}</p>
           <div className="flex gap-2">
-            <button onClick={onClose} className="border px-4 py-2 rounded text-sm">Cancel</button>
-            <button
+            <Button onClick={onClose}>Cancel</Button>
+            <Button
+              variant="primary"
               onClick={() => save.mutate()}
-              disabled={save.isPending}
-              className="bg-blue-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+              loading={save.isPending}
             >
               {save.isPending ? 'Saving...' : `Select ${picked.size} file${picked.size === 1 ? '' : 's'}`}
-            </button>
+            </Button>
           </div>
         </div>
         {save.isError && <p className="px-4 pb-3 text-sm text-red-600">Failed to save selection.</p>}

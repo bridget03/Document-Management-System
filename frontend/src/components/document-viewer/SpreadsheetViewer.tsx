@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { fetchPreviewBuffer } from '../../services/documentApi';
 import { MAX_PREVIEW_ROWS } from './preview';
+import { SegmentButton } from '../ui/Button';
 
 type Cell = string | number | boolean | null | undefined;
 
@@ -74,13 +75,15 @@ export default function SpreadsheetViewer({ docId }: Props) {
     <div className="p-4">
       <div className="flex gap-1 flex-wrap mb-3">
         {sheets.map((name, i) => (
-          <button
+          <SegmentButton
             key={name + i}
             onClick={() => void switchSheet(i)}
-            className={`px-3 py-1 text-sm border rounded ${i === active ? 'bg-blue-600 text-white border-blue-600' : 'bg-white'}`}
+            aria-pressed={i === active}
+            active={i === active}
+            className="border px-3 py-1 text-sm"
           >
             {name}
-          </button>
+          </SegmentButton>
         ))}
       </div>
       {empty && <p className="text-sm text-gray-500 py-6 text-center">Sheet trống.</p>}

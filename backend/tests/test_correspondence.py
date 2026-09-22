@@ -269,3 +269,78 @@ def test_dashboard_stats():
     # custom range with no data -> empty trend, still 200
     r = c.get("/api/dashboard/stats", headers=h, params={"from_date": "2000-01-01", "to_date": "2000-01-31"})
     assert r.status_code == 200 and r.json()["trend"] == []
+
+
+def test_corr_visibility_acl_and_attach_guard():
+    c = get_client()
+    ha = login(c)
+    hs = login(c, "staff@test.com", "staff123")
+    t = make_type(c, ha, code="ACL1", name="ACL")
+    # admin creates PRIVATE outgoing
+    body = base_out(t["id"])
+    body.update({"document_number": "PRIV/1", "visibility": "PRIVATE"})
+    r = c.post("/api/correspondence/outgoing", headers=ha, json=body)
+    assert r.status_code == 200, r.text
+    priv_id = r.json()["id"]
+    assert r.json()["visibility"] == "PRIVATE"
+    # staff cannot read it, sees empty list
+    assert c.get(f"/api/correspondence/outgoing/{priv_id}", headers=hs).status_code == 403
+    assert c.get("/api/correspondence/outgoing", headers=hs).json()["total"] == 0
+    # admin sees it
+    assert c.get(f"/api/correspondence/outgoing/{priv_id}", headers=ha).status_code == 200
+    # staff cannot attach the private doc to their own record
+    from app.models.document import Document
+    db = SessionLocal()
+    db.add(Document(name="p.pdf", original_name="p.pdf", file_extension="pdf",
+                    storage_type="LOCAL", source="LOCAL_UPLOAD", sync_status="NOT_SYNCED",
+                    visibility="PRIVATE", uploaded_by=db.query(User).filter(User.email == "admin@test.com").first().id))
+    db.commit()
+    priv_doc = db.query(Document).filter(Document.name == "p.pdf").first()
+    db.close()
+    body2 = base_out(t["id"])
+    body2.update({"document_number": "ST/1", "attachment_ids": [priv_doc.id]})
+    r = c.post("/api/correspondence/outgoing", headers=hs, json=body2)
+    assert r.status_code == 400 and "quyền" in r.text
+    # DEPARTMENT visibility requires department
+    body3 = base_out(t["id"])
+    body3.update({"document_number": "ST/2", "visibility": "DEPARTMENT"})
+    r = c.post("/api/correspondence/outgoing", headers=hs, json=body3)
+    assert r.status_code == 400
+    # invalid visibility
+    body3.update({"document_number": "ST/3", "visibility": "GALAXY", "department": "Ke toan"})
+    r = c.post("/api/correspondence/outgoing", headers=hs, json=body3)
+    assert r.status_code == 400
+
+
+def test_expiring_soon_boundaries():
+    from datetime import date, timedelta
+    from app.services.dashboard_service import get_stats, parse_range
+    c = get_client()
+    ha = login(c)
+    t = make_type(c, ha, code="EXP1", name="Exp")
+    today = date.today()
+    cases = [
+        ("EXP/TODAY", today, True),          # hết hạn hôm nay -> báo (days_left=0)
+        ("EXP/D10", today + timedelta(days=10), True),   # đúng 10 ngày -> báo
+        ("EXP/D11", today + timedelta(days=11), False),  # 11 ngày -> không báo
+        ("EXP/PAST", today - timedelta(days=1), False),  # đã quá hạn -> không báo
+    ]
+    for num, exp, _ in cases:
+        body = base_out(t["id"])
+        body.update({"document_number": num, "expiry_date": exp.isoformat()})
+        r = c.post("/api/correspondence/outgoing", headers=ha, json=body)
+        assert r.status_code == 200, r.text
+    body = base_out(t["id"])
+    body.update({"document_number": "EXP/NONE"})
+    assert c.post("/api/correspondence/outgoing", headers=ha, json=body).status_code == 200
+    from_d, to_d = parse_range(None, None)
+    db = SessionLocal()
+    stats = get_stats(db, from_d, to_d)
+    db.close()
+    got = {e["document_number"]: e["days_left"] for e in stats["expiring_soon"]}
+    assert got.get("EXP/TODAY") == 0
+    assert got.get("EXP/D10") == 10
+    assert "EXP/D11" not in got and "EXP/PAST" not in got and "EXP/NONE" not in got
+    # sắp xếp tăng dần days_left
+    days = [e["days_left"] for e in stats["expiring_soon"]]
+    assert days == sorted(days)

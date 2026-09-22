@@ -1,24 +1,21 @@
-"""Correspondence authorization policy — PHASE scope: existing auth only.
+"""Authorization policy: owner/role + sharing scope (visibility + department).
 
-Current rules (mirrors the Documents module):
-- Read / create / import: any authenticated, active user.
-  No document-level or department-level scoping is applied in this phase,
-  including for INTERNAL direction.
-- Edit / delete: record owner or ADMIN.
-- Document types / numbering settings: ADMIN only.
+Sharing model (documents + correspondence):
+- ORGANIZATION: every authenticated user may read (legacy default — existing
+  rows keep this, so nothing is hidden by the migration itself).
+- DEPARTMENT: readers in the same department, plus the owner and ADMIN.
+- PRIVATE: only the owner and ADMIN.
 
-EXTENSION POINTS (deliberately not implemented yet):
-- :func:`can_view_corr` — future home of document-level access control
-  (e.g. per-record ACL). All read paths already funnel through it, so a
-  future rule only needs to change this one function (plus list-query
-  filtering in the service layer).
-- Department-level control will additionally need a department master +
-  membership model; natural anchors already exist on the record
-  (``issuing_department`` text, ``created_by`` FK). Do NOT bolt ad-hoc
-  department checks onto these helpers — introduce that model first.
+Edit / delete stay owner-or-ADMIN (unchanged). Types / numbering settings
+stay ADMIN-only. A user with no department simply matches no DEPARTMENT row
+except their own.
 """
 
+from sqlalchemy import and_, or_
+
 from app.models.user import User
+
+VISIBILITIES = ("ORGANIZATION", "DEPARTMENT", "PRIVATE")
 
 
 def is_admin(user: User) -> bool:
@@ -29,23 +26,74 @@ def is_owner(user: User, created_by: str | None) -> bool:
     return bool(created_by) and created_by == user.id
 
 
+def normalize_visibility(value: str | None) -> str:
+    v = (value or "ORGANIZATION").upper()
+    return v if v in VISIBILITIES else "ORGANIZATION"
+
+
+def _scope_filter(visibility_col, department_col, owner_col, user: User):
+    """SQLAlchemy filter for list queries. Returns None for ADMIN (no filter)."""
+    if is_admin(user):
+        return None
+    conds = [
+        visibility_col == "ORGANIZATION",
+        visibility_col.is_(None),
+        owner_col == user.id,
+    ]
+    if getattr(user, "department", None):
+        conds.append(
+            and_(visibility_col == "DEPARTMENT", department_col == user.department)
+        )
+    return or_(*conds)
+
+
+def scope_document_query(query, user: User):
+    from app.models.document import Document
+
+    f = _scope_filter(Document.visibility, Document.department, Document.uploaded_by, user)
+    return query if f is None else query.filter(f)
+
+
+def scope_corr_query(query, user: User):
+    from app.models.correspondence import CorrespondenceDocument as CD
+
+    f = _scope_filter(CD.visibility, CD.department, CD.created_by, user)
+    return query if f is None else query.filter(f)
+
+
+def _can_view(visibility: str | None, department: str | None, owner_id: str | None, user: User) -> bool:
+    if is_admin(user) or is_owner(user, owner_id):
+        return True
+    v = normalize_visibility(visibility)
+    if v == "ORGANIZATION":
+        return True
+    if v == "DEPARTMENT":
+        return bool(getattr(user, "department", None)) and user.department == department
+    return False  # PRIVATE
+
+
+def can_view_document(user: User, doc) -> bool:
+    return _can_view(doc.visibility, doc.department, doc.uploaded_by, user)
+
+
 def can_view_corr(user: User, doc=None) -> bool:
-    """Phase: every authenticated user may read every record."""
-    return True
+    if doc is None:
+        return True
+    return _can_view(doc.visibility, doc.department, doc.created_by, user)
 
 
 def can_create_corr(user: User, direction: str) -> bool:
-    """Phase: every authenticated user may create in any direction."""
+    """Every authenticated user may create in any direction."""
     return True
 
 
 def can_edit_corr(user: User, doc) -> bool:
-    """Phase: owner or ADMIN. No department scoping."""
+    """Owner or ADMIN. No department scoping on write."""
     return is_admin(user) or is_owner(user, doc.created_by)
 
 
 def can_delete_corr(user: User, doc) -> bool:
-    """Phase: same rule as edit (owner or ADMIN)."""
+    """Same rule as edit (owner or ADMIN)."""
     return can_edit_corr(user, doc)
 
 

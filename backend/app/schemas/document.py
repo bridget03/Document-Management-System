@@ -32,6 +32,8 @@ class DocumentOut(BaseModel):
     uploaded_by: str | None = None
     source: str
     sync_status: str
+    visibility: str = "ORGANIZATION"
+    department: str | None = None
     google_drive_file_id: str | None = None
     google_drive_url: str | None = None
     created_at: datetime
@@ -47,6 +49,8 @@ class DocumentUpdate(BaseModel):
     description: str | None = None
     category_id: str | None = None
     tags: list[str] | None = None
+    visibility: str | None = None
+    department: str | None = None
 
 
 class PaginatedDocuments(BaseModel):

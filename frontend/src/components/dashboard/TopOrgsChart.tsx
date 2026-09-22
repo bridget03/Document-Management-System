@@ -3,6 +3,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts';
 import { ChartEmpty } from './ChartCard';
+import { SegmentButton } from '../ui/Button';
 import { TYPE_COLORS } from './chartTheme';
 
 type Mode = 'senders' | 'recipients' | 'departments';
@@ -33,16 +34,14 @@ export default function TopOrgsChart({ senders, recipients, departments }: Props
     <div>
       <div className="mb-2 flex gap-1.5 px-2" role="group" aria-label="Chọn nhóm đơn vị">
         {MODES.map((m) => (
-          <button
+          <SegmentButton
             key={m.value}
             onClick={() => setMode(m.value)}
             aria-pressed={mode === m.value}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              mode === m.value ? 'bg-brand-50 text-brand-700' : 'text-gray-500 hover:bg-gray-100'
-            }`}
+            active={mode === m.value}
           >
             {m.label}
-          </button>
+          </SegmentButton>
         ))}
       </div>
       {data.length === 0 ? (

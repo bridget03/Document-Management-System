@@ -38,9 +38,10 @@ export default function DocumentDetail() {
   const { id } = useParams();
   const qc = useQueryClient();
   const { toast } = useToast();
-  const { data, isLoading, isError } = useQuery<Document>({
+  const { data, isLoading, isError, error } = useQuery<Document>({
     queryKey: ["doc", id],
     queryFn: () => getDocument(id!),
+    retry: false,
   });
   const [editing, setEditing] = useState(false);
   const [description, setDescription] = useState("");
@@ -107,10 +108,12 @@ export default function DocumentDetail() {
     );
   }
   if (isError || !data) {
+    const errDetail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+    const msg = typeof errDetail === "string" ? errDetail : "Document not found";
     return (
       <Card className="px-6 py-10 text-center">
-        <p className="font-semibold text-gray-900">Document not found</p>
-        <p className="mt-1 text-sm text-gray-500">It may have been deleted.</p>
+        <p className="font-semibold text-gray-900">{msg}</p>
+        <p className="mt-1 text-sm text-gray-500">It may have been deleted or you lack permission.</p>
         <Link
           to="/documents"
           className="mt-3 inline-block text-sm font-medium text-brand-700"
@@ -231,16 +234,7 @@ export default function DocumentDetail() {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </Field>
-              <Button
-                className="rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-                variant="primary"
+              <Button variant="primary"
                 size="sm"
                 loading={save.isPending}
                 onClick={() => save.mutate()}
@@ -261,6 +255,13 @@ export default function DocumentDetail() {
             </InfoRow>
             <InfoRow label="Source">
               {data.source === "GOOGLE_DRIVE" ? "Google Drive" : "Local upload"}
+            </InfoRow>
+            <InfoRow label="Chia sẻ">
+              {data.visibility === "PRIVATE"
+                ? "Riêng tư"
+                : data.visibility === "DEPARTMENT"
+                  ? `Phòng ban${data.department ? ` (${data.department})` : ""}`
+                  : "Toàn công ty"}
             </InfoRow>
             <InfoRow label="Created">
               {new Date(data.created_at).toLocaleString()}

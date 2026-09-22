@@ -2,10 +2,12 @@ import { useEffect, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Trash2, Tag as TagIcon } from 'lucide-react';
 import api from '../services/api';
+import { useAuthStore } from '../stores/authStore';
 import { listDocuments } from '../services/documentApi';
 import { Card, TableSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import Button from '../components/ui/Button';
+import { IconButton } from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Modal from '../components/ui/Modal';
 import { TextInput, Field } from '../components/ui/Input';
@@ -19,6 +21,7 @@ interface Tag {
 export default function Tags() {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN');
   const { data, isLoading, isError, refetch } = useQuery<Tag[]>({
     queryKey: ['tags'],
     queryFn: () => api.get('/tags').then((r) => r.data),
@@ -101,14 +104,17 @@ export default function Tags() {
                 <TagIcon size={13} className="text-gray-400" />
                 <span className="font-medium text-gray-700">{t.name}</span>
                 <Badge tone="neutral">{counts[t.id] ?? '—'}</Badge>
-                <button
-                  onClick={() => setDel(t)}
-                  className="rounded-full p-1 text-gray-400 opacity-0 hover:bg-red-50 hover:text-red-600 focus:opacity-100 group-hover:opacity-100"
-                  title={`Delete ${t.name}`}
-                  aria-label={`Delete ${t.name}`}
-                >
-                  <Trash2 size={13} />
-                </button>
+                {isAdmin && (
+                  <IconButton
+                    label={`Delete ${t.name}`}
+                    tone="danger"
+                    iconSize="sm"
+                    onClick={() => setDel(t)}
+                    className="rounded-full opacity-0 focus:opacity-100 group-hover:opacity-100"
+                  >
+                    <Trash2 size={13} />
+                  </IconButton>
+                )}
               </span>
             ))}
           </div>

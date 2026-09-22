@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import {
   createDocType,
   deleteDocType,
@@ -12,6 +12,7 @@ import EmptyState from "../components/ui/EmptyState";
 import Button from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
+import { IconButton } from "../components/ui/Button";
 import { TextInput, TextArea, Select, Field } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import type { DocType } from "../types/correspondence";
@@ -98,16 +99,7 @@ export default function DocTypes() {
             Quản lý danh mục loại văn bản dùng trong hệ thống.
           </p>
         </div>
-        <Button
-          className="h-12 rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-          variant="primary"
+        <Button variant="primary"
           onClick={() =>
             setModal({
               code: "",
@@ -194,7 +186,8 @@ export default function DocTypes() {
                   </td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="inline-flex gap-1">
-                      <button
+                      <IconButton
+                        label={`Chỉnh sửa ${t.name}`}
                         onClick={() =>
                           setModal({
                             id: t.id,
@@ -205,20 +198,16 @@ export default function DocTypes() {
                             default_signer: t.default_signer || "",
                           })
                         }
-                        className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-                        title="Chỉnh sửa"
-                        aria-label={`Chỉnh sửa ${t.name}`}
                       >
                         <Pencil size={15} />
-                      </button>
-                      <button
+                      </IconButton>
+                      <IconButton
+                        label={`Xóa ${t.name} (chỉ khi chưa dùng)`}
+                        tone="danger"
                         onClick={() => remove.mutate(t.id)}
-                        className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600"
-                        title="Xóa (chỉ khi chưa dùng)"
-                        aria-label={`Xóa ${t.name}`}
                       >
-                        Xóa
-                      </button>
+                        <Trash2 size={15} />
+                      </IconButton>
                     </span>
                   </td>
                 </tr>
@@ -235,16 +224,7 @@ export default function DocTypes() {
         footer={
           <>
             <Button onClick={() => setModal(null)}>Hủy</Button>
-            <Button
-              className="rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-              variant="primary"
+            <Button variant="primary"
               loading={save.isPending}
               disabled={!modal?.code.trim() || !modal?.name.trim()}
               onClick={() => save.mutate()}

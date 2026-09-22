@@ -96,6 +96,8 @@ class CorrCreate(BaseModel):
     document_type_id: str | None = None
     processing_status: str = "DRAFT"
     notes: str | None = None
+    visibility: str = "ORGANIZATION"
+    department: str | None = None
     attachment_ids: list[str] = []
     links: list[LinkIn] = []
 
@@ -116,6 +118,8 @@ class CorrUpdate(BaseModel):
     document_type_id: str | None = None
     processing_status: str | None = None
     notes: str | None = None
+    visibility: str | None = None
+    department: str | None = None
     attachment_ids: list[str] | None = None
     links: list[LinkIn] | None = None
 
@@ -177,6 +181,8 @@ class CorrOut(BaseModel):
     doc_type: DocTypeOut | None = None
     processing_status: str
     notes: str | None = None
+    visibility: str = "ORGANIZATION"
+    department: str | None = None
     created_by: str | None = None
     creator: CreatorOut | None = None
     attachments: list[AttachmentOut] = []

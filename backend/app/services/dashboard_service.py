@@ -44,24 +44,32 @@ def _bucket(d: date, from_d: date, span: int) -> str:
     return f"{d.year}-{d.month:02d}"
 
 
-def get_stats(db: Session, from_d: date, to_d: date) -> dict:
+def get_stats(db: Session, from_d: date, to_d: date, user=None) -> dict:
+    from app.core.permissions import scope_corr_query, scope_document_query
+
     start = datetime(from_d.year, from_d.month, from_d.day)
     end = datetime(to_d.year, to_d.month, to_d.day) + timedelta(days=1)
     span = (to_d - from_d).days or 1
 
+    doc_q = db.query(Document)
+    cd_q = db.query(CD)
+    if user is not None:
+        doc_q = scope_document_query(doc_q, user)
+        cd_q = scope_corr_query(cd_q, user)
+
     overview = {
-        "total_documents": db.query(func.count(Document.id)).scalar() or 0,
+        "total_documents": doc_q.with_entities(func.count(Document.id)).scalar() or 0,
         "incoming": 0, "outgoing": 0, "internal": 0,
     }
     for direction, count in (
-        db.query(CD.direction, func.count(CD.id)).group_by(CD.direction).all()
+        cd_q.with_entities(CD.direction, func.count(CD.id)).group_by(CD.direction).all()
     ):
         key = (direction or "").lower()
         if key in overview:
             overview[key] = count
 
     rows = (
-        db.query(
+        cd_q.with_entities(
             CD.direction, CD.created_at, CD.processing_status,
             CD.document_type_id, CD.security_level, CD.urgency_level,
             CD.sender, CD.recipient, CD.issuing_department,
@@ -100,6 +108,36 @@ def get_stats(db: Session, from_d: date, to_d: date) -> dict:
         if dept and dept.strip():
             departments[dept.strip()] += 1
 
+    # Cảnh báo hết hiệu lực: 0 <= (expiry - hôm nay) <= 10 ngày.
+    # Đã quá hạn hoặc không có ngày hết hạn thì không báo. Tôn trọng visibility.
+    today = datetime.utcnow().date()
+    expiring = (
+        cd_q.with_entities(
+            CD.id, CD.direction, CD.document_number, CD.expiry_date,
+            CD.processing_status, CD.signer,
+        )
+        .filter(
+            CD.expiry_date.isnot(None),
+            CD.expiry_date >= today,
+            CD.expiry_date <= today + timedelta(days=10),
+        )
+        .order_by(CD.expiry_date.asc())
+        .limit(50)
+        .all()
+    )
+    expiring_soon = [
+        {
+            "id": cid,
+            "direction": direction,
+            "document_number": number,
+            "expiry_date": exp.isoformat(),
+            "days_left": (exp - today).days,
+            "processing_status": status,
+            "signer": signer,
+        }
+        for cid, direction, number, exp, status, signer in expiring
+    ]
+
     type_names = {}
     if type_c:
         from app.models.correspondence import DocumentType
@@ -129,4 +167,5 @@ def get_stats(db: Session, from_d: date, to_d: date) -> dict:
         "top_senders": [{"name": n, "count": c} for n, c in senders.most_common(TOP_N)],
         "top_recipients": [{"name": n, "count": c} for n, c in recipients.most_common(TOP_N)],
         "top_departments": [{"name": n, "count": c} for n, c in departments.most_common(TOP_N)],
+        "expiring_soon": expiring_soon,
     }

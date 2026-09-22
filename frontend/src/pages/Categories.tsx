@@ -7,6 +7,7 @@ import { Card, TableSkeleton } from '../components/ui/Skeleton';
 import EmptyState from '../components/ui/EmptyState';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
+import { IconButton } from '../components/ui/Button';
 import { TextInput, TextArea, Field } from '../components/ui/Input';
 import { useToast } from '../components/ui/Toast';
 
@@ -116,22 +117,19 @@ export default function Categories() {
                   <td className="px-4 py-2.5 text-gray-600">{counts[c.id] ?? '—'}</td>
                   <td className="px-4 py-2.5 text-right">
                     <span className="inline-flex gap-1">
-                      <button
+                      <IconButton
+                        label={`Rename ${c.name}`}
                         onClick={() => setModal({ id: c.id, name: c.name, description: c.description || '' })}
-                        className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-                        title={`Rename ${c.name}`}
-                        aria-label={`Rename ${c.name}`}
                       >
                         <Pencil size={15} />
-                      </button>
-                      <button
+                      </IconButton>
+                      <IconButton
+                        label={`Delete ${c.name}`}
+                        tone="danger"
                         onClick={() => setDelId(c.id)}
-                        className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600"
-                        title={`Delete ${c.name}`}
-                        aria-label={`Delete ${c.name}`}
                       >
                         <Trash2 size={15} />
-                      </button>
+                      </IconButton>
                     </span>
                   </td>
                 </tr>

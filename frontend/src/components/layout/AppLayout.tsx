@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import Sidebar from './Sidebar';
+import { IconButton } from '../ui/Button';
 import Header from './Header';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -16,13 +17,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDrawer(false)} />
           <div className="absolute inset-y-0 left-0 w-72 max-w-[85vw] bg-white shadow-sm">
-            <button
+            <IconButton
+              label="Close navigation"
               onClick={() => setDrawer(false)}
-              className="absolute right-2 top-3 rounded p-1.5 text-gray-500 hover:bg-gray-100"
-              aria-label="Close navigation"
+              className="absolute right-2 top-3"
             >
               <X size={18} />
-            </button>
+            </IconButton>
             <Sidebar onNavigate={() => setDrawer(false)} />
           </div>
         </div>

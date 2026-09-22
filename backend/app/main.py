@@ -12,6 +12,7 @@ from app.models import User  # noqa: F401  (register models)
 from app.models import Category, Tag, Document, GoogleDriveConfig, SyncLog, AuditLog, GoogleDriveSyncFile  # noqa
 from app.models import DocumentType, CorrespondenceNumberConfig, CorrespondenceDocument  # noqa
 from app.models import CorrespondenceAttachment, CorrespondenceLink  # noqa
+from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.documents import router as docs_router
 from app.api.categories import router as cats_router
@@ -30,7 +31,9 @@ def create_app() -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins_list + ["*"] if settings.APP_ENV == "development" else settings.cors_origins_list,
+        # Never mix "*" with allow_credentials (browsers reject it);
+        # allowed origins come only from CORS_ORIGINS.
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -54,6 +57,7 @@ def create_app() -> FastAPI:
         return {"status": "ok", "version": "1.0.0"}
 
     app.include_router(auth_router, prefix="/api")
+    app.include_router(audit_router, prefix="/api")
     app.include_router(docs_router, prefix="/api")
     app.include_router(cats_router, prefix="/api")
     app.include_router(tags_router, prefix="/api")

@@ -8,6 +8,7 @@ import {
 import FileBrowserModal from '../components/google-drive/FileBrowserModal';
 import { Card, Skeleton } from '../components/ui/Skeleton';
 import Button from '../components/ui/Button';
+import { IconButton, SegmentButton } from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import EmptyState from '../components/ui/EmptyState';
 import { Select } from '../components/ui/Input';
@@ -145,19 +146,16 @@ export default function GoogleDrive() {
           <p className="mt-0.5 text-xs text-gray-500">Choose what to synchronize.</p>
           <div className="mt-3 flex gap-2" role="radiogroup" aria-label="Sync scope">
             {(['FOLDER', 'FILES'] as const).map((m) => (
-              <button
+              <SegmentButton
                 key={m}
                 role="radio"
                 aria-checked={mode === m}
+                active={mode === m}
                 onClick={() => setMode(m)}
-                className={`rounded-md border px-4 py-2 text-sm font-medium transition-colors duration-150 ${
-                  mode === m
-                    ? 'border-brand-700 bg-brand-50 text-brand-700'
-                    : 'border-gray-300 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
+                className="border px-4 py-2 text-sm"
               >
                 {m === 'FOLDER' ? 'Entire folder' : 'Selected files'}
-              </button>
+              </SegmentButton>
             ))}
           </div>
 
@@ -195,9 +193,9 @@ export default function GoogleDrive() {
                     <li key={s.google_drive_file_id} className="flex items-center gap-2 px-3 py-2 text-sm">
                       <FileText size={14} className="shrink-0 text-blue-500" />
                       <span className="flex-1 truncate text-gray-700">{s.file_name}</span>
-                      <button onClick={() => remove.mutate(s.google_drive_file_id)} className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600" title="Remove" aria-label={`Remove ${s.file_name}`}>
+                      <IconButton label={`Remove ${s.file_name}`} tone="danger" iconSize="sm" onClick={() => remove.mutate(s.google_drive_file_id)}>
                         <X size={14} />
-                      </button>
+                      </IconButton>
                     </li>
                   ))}
                 </ul>

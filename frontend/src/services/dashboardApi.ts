@@ -12,6 +12,15 @@ export interface DashboardStats {
   top_senders: { name: string; count: number }[];
   top_recipients: { name: string; count: number }[];
   top_departments: { name: string; count: number }[];
+  expiring_soon: {
+    id: string;
+    direction: string;
+    document_number: string;
+    expiry_date: string;
+    days_left: number;
+    processing_status: string;
+    signer: string | null;
+  }[];
 }
 
 export const getDashboardStats = (from?: string, to?: string) =>

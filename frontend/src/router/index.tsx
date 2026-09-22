@@ -1,5 +1,9 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { me } from "../services/authApi";
 import Login from "../pages/Login";
+import Users from "../pages/Users";
+import Audit from "../pages/Audit";
 import Dashboard from "../pages/Dashboard";
 import Documents from "../pages/Documents";
 import DocumentDetail from "../pages/DocumentDetail";
@@ -19,6 +23,26 @@ import { useAuthStore } from "../stores/authStore";
 function Guard({ children }: { children: JSX.Element }) {
   const token = useAuthStore((s) => s.token);
   if (!token) return <Navigate to="/login" />;
+  return <Layout>{children}</Layout>;
+}
+
+function AdminGuard({ children }: { children: JSX.Element }) {
+  const token = useAuthStore((s) => s.token);
+  const user = useAuthStore((s) => s.user);
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const q = useQuery({
+    queryKey: ["me"],
+    queryFn: async () => {
+      const u = await me();
+      setAuth(u, token!);
+      return u;
+    },
+    enabled: !!token && !user,
+    retry: false,
+  });
+  if (!token || q.isError) return <Navigate to="/login" />;
+  if (!user) return <Layout><div className="p-6 text-sm text-gray-500">Đang tải…</div></Layout>;
+  if (user.role !== "ADMIN") return <Navigate to="/dashboard" />;
   return <Layout>{children}</Layout>;
 }
 
@@ -249,9 +273,25 @@ export default function Router() {
         <Route
           path="/correspondence/settings"
           element={
-            <Guard>
+            <AdminGuard>
               <CorrSettings />
-            </Guard>
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <AdminGuard>
+              <Users />
+            </AdminGuard>
+          }
+        />
+        <Route
+          path="/audit"
+          element={
+            <AdminGuard>
+              <Audit />
+            </AdminGuard>
           }
         />
         <Route path="*" element={<Navigate to="/dashboard" />} />

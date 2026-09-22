@@ -23,6 +23,7 @@ import { ChartCard, ChartSkeleton, KpiCard } from "../components/dashboard/Chart
 import DateFilter, { presetRange, type Preset, type Range } from "../components/dashboard/DateFilter";
 import TrendChart from "../components/dashboard/TrendChart";
 import TopOrgsChart from "../components/dashboard/TopOrgsChart";
+import ExpiringSoon from "../components/dashboard/ExpiringSoon";
 import Donut from "../components/dashboard/Donut";
 import TypeBars from "../components/dashboard/TypeBars";
 import {
@@ -103,6 +104,9 @@ export default function Dashboard() {
         </Card>
       ) : (
         <>
+          {!loading && (stats?.expiring_soon?.length || 0) > 0 && (
+            <ExpiringSoon items={stats!.expiring_soon} />
+          )}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <KpiCard
               icon={<Files size={18} />}

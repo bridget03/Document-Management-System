@@ -15,6 +15,7 @@ import { downloadViaBlob } from "../services/documentApi";
 import DocumentViewer from "../components/document-viewer/DocumentViewer";
 import { Card, Skeleton } from "../components/ui/Skeleton";
 import Button from "../components/ui/Button";
+import { IconButton } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
@@ -61,9 +62,10 @@ export default function CorrespondenceDetail({
   const { toast } = useToast();
   const [del, setDel] = useState(false);
 
-  const { data, isLoading, isError } = useQuery<CorrDoc>({
+  const { data, isLoading, isError, error } = useQuery<CorrDoc>({
     queryKey: ["corr-doc", id],
     queryFn: () => corrGet(apiDir, id!),
+    retry: false,
   });
 
   const remove = useMutation({
@@ -100,9 +102,11 @@ export default function CorrespondenceDetail({
     );
   }
   if (isError || !data) {
+    const errDetail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+    const msg = typeof errDetail === "string" ? errDetail : "Không tìm thấy văn bản";
     return (
       <Card className="mx-auto max-w-2xl px-6 py-10 text-center">
-        <p className="font-semibold text-gray-900">Không tìm thấy văn bản</p>
+        <p className="font-semibold text-gray-900">{msg}</p>
         <Link
           to={base}
           className="mt-3 inline-block text-sm font-medium text-brand-700"
@@ -201,6 +205,13 @@ export default function CorrespondenceDetail({
             <InfoRow label="Tình trạng xử lý">
               <Badge tone={st.tone}>{st.label}</Badge>
             </InfoRow>
+            <InfoRow label="Chia sẻ">
+              {data.visibility === "PRIVATE"
+                ? "Riêng tư"
+                : data.visibility === "DEPARTMENT"
+                  ? `Phòng ban${data.department ? ` (${data.department})` : ""}`
+                  : "Toàn công ty"}
+            </InfoRow>
             <InfoRow label="Ghi chú">{data.notes || "—"}</InfoRow>
           </div>
         </Card>
@@ -242,16 +253,14 @@ export default function CorrespondenceDetail({
                         >
                           <Eye size={14} />
                         </Link>
-                        <button
+                        <IconButton
+                          label={`Download ${a.document!.name}`}
                           onClick={() =>
                             downloadViaBlob(a.document!.id, a.document!.name)
                           }
-                          className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-                          title="Download"
-                          aria-label={`Download ${a.document.name}`}
                         >
                           <Download size={14} />
-                        </button>
+                        </IconButton>
                       </span>
                     )}
                   </li>

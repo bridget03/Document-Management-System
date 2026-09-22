@@ -8,6 +8,7 @@ import { Card } from "../components/ui/Skeleton";
 import Button from "../components/ui/Button";
 import { TextInput, TextArea, Select, Field } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
+import { VISIBILITY_OPTIONS } from "../types/correspondence";
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
@@ -16,6 +17,8 @@ export default function Upload() {
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [tags, setTags] = useState("");
+  const [visibility, setVisibility] = useState("ORGANIZATION");
+  const [department, setDepartment] = useState("");
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
   const nav = useNavigate();
@@ -37,6 +40,8 @@ export default function Upload() {
     if (description) form.append("description", description);
     if (categoryId) form.append("category_id", categoryId);
     if (tags) form.append("tags", tags);
+    form.append("visibility", visibility);
+    if (department.trim()) form.append("department", department.trim());
     try {
       setUploading(true);
       const doc = await uploadDocument(form, setProgress);
@@ -141,6 +146,29 @@ export default function Upload() {
               onChange={(e) => setDescription(e.target.value)}
             />
           </Field>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Field label="Chia sẻ">
+              <Select
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value)}
+              >
+                {VISIBILITY_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            {visibility === "DEPARTMENT" && (
+              <Field label="Phòng ban">
+                <TextInput
+                  placeholder="Kế toán"
+                  value={department}
+                  onChange={(e) => setDepartment(e.target.value)}
+                />
+              </Field>
+            )}
+          </div>
 
           {progress > 0 && uploading && (
             <div

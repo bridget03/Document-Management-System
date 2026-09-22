@@ -19,10 +19,10 @@ def dashboard_stats(
     """Aggregated dashboard statistics (single request, no row fetching).
 
     Dates are ``YYYY-MM-DD``; defaults to the last 30 days, clamped to 366.
-    Respects existing auth; no document-level permission model exists yet.
+    Counts are scoped to records the caller may read (visibility/department).
     """
     try:
         from_d, to_d = parse_range(from_date, to_date)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return get_stats(db, from_d, to_d)
+    return get_stats(db, from_d, to_d, user)

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, X, Link2, FileUp, Wand2 } from "lucide-react";
 import Button from "../ui/Button";
+import { IconButton, LinkButton } from "../ui/Button";
 import { TextInput, TextArea, Select, Field } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { uploadDocument } from "../../services/documentApi";
@@ -10,6 +11,7 @@ import {
   LEVEL_OPTIONS,
   STATUS_OPTIONS,
   DIRECTION_CONFIG,
+  VISIBILITY_OPTIONS,
   type CorrDoc,
   type Direction,
   type DocType,
@@ -31,6 +33,8 @@ export interface CorrFormValue {
   document_type_id: string;
   processing_status: string;
   notes: string;
+  visibility: string;
+  department: string;
   attachment_ids: { document_id: string; name: string }[];
   links: { name: string; url: string }[];
 }
@@ -61,6 +65,8 @@ const empty: CorrFormValue = {
   document_type_id: "",
   processing_status: "DRAFT",
   notes: "",
+  visibility: "ORGANIZATION",
+  department: "",
   attachment_ids: [],
   links: [],
 };
@@ -83,6 +89,8 @@ function toValue(d: CorrDoc): CorrFormValue {
     document_type_id: d.document_type_id || "",
     processing_status: d.processing_status,
     notes: d.notes || "",
+    visibility: d.visibility || "ORGANIZATION",
+    department: d.department || "",
     attachment_ids: d.attachments.map((a) => ({
       document_id: a.document_id,
       name: a.document?.name || a.document_id,
@@ -198,6 +206,8 @@ export default function CorrespondenceForm({
       errs.push("Số lượng phải là số nguyên >= 0.");
     if (v.effective_date && v.expiry_date && v.effective_date > v.expiry_date)
       errs.push("Ngày hiệu lực phải trước hoặc bằng ngày hết hiệu lực.");
+    if (v.visibility === "DEPARTMENT" && !v.department.trim())
+      errs.push("Chia sẻ theo phòng ban thì phải nhập phòng ban.");
     setErrors(errs);
     if (errs.length > 0) return;
     onSubmit(v, and);
@@ -315,12 +325,9 @@ export default function CorrespondenceForm({
                 </label>
               ))}
               {v.security_level && (
-                <button
-                  onClick={() => set("security_level", "")}
-                  className="text-xs text-gray-400 underline"
-                >
+                <LinkButton tone="muted" underline onClick={() => set("security_level", "")}>
                   Xóa
-                </button>
+                </LinkButton>
               )}
             </div>
           </div>
@@ -342,15 +349,39 @@ export default function CorrespondenceForm({
                 </label>
               ))}
               {v.urgency_level && (
-                <button
-                  onClick={() => set("urgency_level", "")}
-                  className="text-xs text-gray-400 underline"
-                >
+                <LinkButton tone="muted" underline onClick={() => set("urgency_level", "")}>
                   Xóa
-                </button>
+                </LinkButton>
               )}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="rounded-lg border border-gray-200 bg-white p-5">
+        <h2 className="text-sm font-semibold text-gray-900">Chia sẻ</h2>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Field label="Phạm vi chia sẻ">
+            <Select
+              value={v.visibility}
+              onChange={(e) => set("visibility", e.target.value)}
+            >
+              {VISIBILITY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          {v.visibility === "DEPARTMENT" && (
+            <Field label="Phòng ban *">
+              <TextInput
+                value={v.department}
+                onChange={(e) => set("department", e.target.value)}
+                placeholder="Kế toán"
+              />
+            </Field>
+          )}
         </div>
       </section>
 
@@ -430,7 +461,10 @@ export default function CorrespondenceForm({
               className="flex items-center gap-2 rounded-md border border-gray-200 px-3 py-2 text-sm"
             >
               <span className="flex-1 truncate text-gray-700">{a.name}</span>
-              <button
+              <IconButton
+                label={`Gỡ ${a.name}`}
+                tone="danger"
+                iconSize="sm"
                 onClick={() =>
                   setV((p) => ({
                     ...p,
@@ -439,11 +473,9 @@ export default function CorrespondenceForm({
                     ),
                   }))
                 }
-                className="text-gray-400 hover:text-red-600"
-                aria-label={`Gỡ ${a.name}`}
               >
                 <X size={14} />
-              </button>
+              </IconButton>
             </div>
           ))}
           <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
@@ -473,18 +505,19 @@ export default function CorrespondenceForm({
               <span className="flex-1 truncate text-gray-700">
                 {l.name} · <span className="text-gray-400">{l.url}</span>
               </span>
-              <button
+              <IconButton
+                label="Gỡ liên kết"
+                tone="danger"
+                iconSize="sm"
                 onClick={() =>
                   setV((p) => ({
                     ...p,
                     links: p.links.filter((_, j) => j !== i),
                   }))
                 }
-                className="text-gray-400 hover:text-red-600"
-                aria-label="Gỡ liên kết"
               >
                 <X size={14} />
-              </button>
+              </IconButton>
             </div>
           ))}
           <div className="flex flex-wrap gap-2">
@@ -511,7 +544,7 @@ export default function CorrespondenceForm({
         <Button onClick={onCancel}>Hủy</Button>
         {createMode ? (
           <>
-            <Button loading={pending} onClick={() => submit("close")}>
+            <Button variant="primary" loading={pending} onClick={() => submit("close")}>
               Lưu và đóng
             </Button>
             <Button loading={pending} onClick={() => submit("add")}>
@@ -522,16 +555,7 @@ export default function CorrespondenceForm({
             </Button>
           </>
         ) : (
-          <Button
-            className="rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-            loading={pending}
+          <Button loading={pending}
             onClick={() => submit("close")}
           >
             Lưu thay đổi

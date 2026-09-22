@@ -81,6 +81,8 @@ export interface CorrDoc {
   doc_type?: DocType | null;
   processing_status: string;
   notes?: string | null;
+  visibility?: string | null;
+  department?: string | null;
   created_by?: string | null;
   creator?: { id: string; name: string } | null;
   attachments: CorrAttachment[];
@@ -110,6 +112,12 @@ export const LEVEL_OPTIONS = [
   { value: 'LOW', label: 'Thấp' },
   { value: 'MEDIUM', label: 'Trung bình' },
   { value: 'HIGH', label: 'Cao' },
+];
+
+export const VISIBILITY_OPTIONS = [
+  { value: 'ORGANIZATION', label: 'Toàn công ty' },
+  { value: 'DEPARTMENT', label: 'Phòng ban' },
+  { value: 'PRIVATE', label: 'Riêng tư (chỉ tôi + admin)' },
 ];
 
 export const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, c]) => ({ value, label: c.label }));

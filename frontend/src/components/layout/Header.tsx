@@ -4,6 +4,7 @@ import { Menu, Search, RefreshCw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { driveStatus } from '../../services/googleDriveApi';
 import { useAuthStore } from '../../stores/authStore';
+import { IconButton } from '../ui/Button';
 import type { DriveStatus } from '../../types/document';
 
 const crumbs: Record<string, string[]> = {
@@ -13,6 +14,8 @@ const crumbs: Record<string, string[]> = {
   '/drive': ['Google Drive'],
   '/categories': ['Categories'],
   '/tags': ['Tags'],
+  '/users': ['Cấu hình', 'Người dùng'],
+  '/audit': ['Cấu hình', 'Nhật ký hệ thống'],
 };
 
 function useCrumbs(): string[] {
@@ -50,9 +53,9 @@ export default function Header({ onMenu }: { onMenu: () => void }) {
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-gray-200 bg-white px-4 md:px-6">
-      <button onClick={onMenu} className="rounded p-2 text-gray-500 hover:bg-gray-100 lg:hidden" aria-label="Open navigation">
+      <IconButton label="Open navigation" onClick={onMenu} className="lg:hidden">
         <Menu size={18} />
-      </button>
+      </IconButton>
       <nav className="hidden min-w-0 items-center gap-1.5 text-sm sm:flex" aria-label="Breadcrumb">
         {items.map((c, i) => (
           <span key={i} className="flex items-center gap-1.5">

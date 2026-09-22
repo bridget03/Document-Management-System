@@ -5,11 +5,12 @@ export interface Document {
   storage_type: string; category_id?: string | null; category?: { id: string; name: string } | null;
   uploaded_by?: string;
   source: string; sync_status: string;
+  visibility?: string | null; department?: string | null;
   google_drive_file_id?: string; google_drive_url?: string;
   created_at: string; updated_at: string; tags: Tag[];
 }
 export interface Paginated<T> { items: T[]; page: number; page_size: number; total: number; total_pages: number; }
-export interface User { id: string; name: string; email: string; role: string; }
+export interface User { id: string; name: string; email: string; role: string; is_active: boolean; department?: string | null; }
 export interface DriveStatus { connected: boolean; email?: string; folder_id?: string; folder_name?: string; sync_scope?: string; selected_count?: number; last_sync?: string; }
 export interface DriveItem {
   id: string;

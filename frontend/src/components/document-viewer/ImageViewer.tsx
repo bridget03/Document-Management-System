@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Expand } from 'lucide-react';
 import { fetchPreviewBlob } from '../../services/documentApi';
+import { ToolButton } from '../ui/Button';
 
 interface Props {
   docId: string;
@@ -35,15 +36,14 @@ export default function ImageViewer({ docId, fileName }: Props) {
   return (
     <div>
       <div className="flex justify-end p-2 border-b bg-gray-50">
-        <button
-          className="border px-2 py-1 rounded text-sm flex items-center gap-1"
+        <ToolButton
           onClick={() => {
             if (document.fullscreenElement) void document.exitFullscreen();
             else void wrapRef.current?.requestFullscreen();
           }}
         >
           <Expand size={14} /> Fullscreen
-        </button>
+        </ToolButton>
       </div>
       <div ref={wrapRef} className="flex items-center justify-center bg-gray-100 p-4 min-h-[40vh] [&:fullscreen]:bg-black">
         <img src={url} alt={fileName} className="max-w-full max-h-[70vh] object-contain [&:fullscreen]:max-h-screen" />

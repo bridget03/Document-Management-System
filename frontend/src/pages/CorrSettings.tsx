@@ -140,17 +140,7 @@ export default function CorrSettings() {
                 </span>
               </p>
               {role === "ADMIN" ? (
-                <Button
-                  className="h-10 rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                      my-4
-                    "
-                  loading={save.isPending}
+                <Button variant="primary" loading={save.isPending}
                   onClick={() => save.mutate(dir)}
                 >
                   Lưu cấu hình

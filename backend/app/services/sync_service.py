@@ -35,9 +35,11 @@ def get_sync_batch(db: Session, config: GoogleDriveConfig) -> tuple[list[dict], 
         list_files_in_folder,
     )
 
+    from app.services.token_crypto import reveal_token
+
     if not config.access_token:
         raise ValueError("Google Drive not connected")
-    service = build_drive_service(config.access_token, config.refresh_token or "")
+    service = build_drive_service(reveal_token(config.access_token) or "", reveal_token(config.refresh_token) or "")
     if sync_scope_of(config) == "FILES":
         selected = db.query(GoogleDriveSyncFile).filter(GoogleDriveSyncFile.config_id == config.id).all()
         if not selected:

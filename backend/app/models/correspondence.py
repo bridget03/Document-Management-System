@@ -52,6 +52,9 @@ class CorrespondenceDocument(Base):
     document_type_id = Column(String(36), ForeignKey("document_types.id"), nullable=True, index=True)
     processing_status = Column(String(30), nullable=False, default="DRAFT", index=True)
     notes = Column(Text, nullable=True)
+    # Sharing scope, same semantics as documents.visibility.
+    visibility = Column(String(20), nullable=False, default="ORGANIZATION")
+    department = Column(String(255), nullable=True, index=True)
     created_by = Column(String(36), ForeignKey("users.id"), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

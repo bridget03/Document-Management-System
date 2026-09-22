@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/google-drive/callback"
     GOOGLE_SCOPES: str = "https://www.googleapis.com/auth/drive.readonly"
+    DRIVE_TOKEN_KEY: str = ""  # Fernet key (generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
     SYNC_INTERVAL_MINUTES: int = 30
     CORS_ORIGINS: str = "http://localhost:5173"
 

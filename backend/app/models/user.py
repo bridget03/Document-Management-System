@@ -14,5 +14,6 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     role = Column(String(50), nullable=False, default="USER")
     is_active = Column(Boolean, nullable=False, default=True)
+    department = Column(String(255), nullable=True, index=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)

@@ -264,3 +264,169 @@ def test_vietnamese_search_case_and_normalization():
                     data={"name": "x"})
     assert r.status_code == 200
     assert unicodedata.is_normalized("NFC", r.json()["name"])
+
+
+def _client_with_staff():
+    from app.models.user import User as _U
+    client = get_client()
+    db = SessionLocal()
+    db.add(_U(name="Staff", email="staff@test.com", password_hash=hash_password("staff123"), role="USER"))
+    db.commit()
+    db.close()
+    return client
+
+
+def _login(client, email, password):
+    r = client.post("/api/auth/login", json={"email": email, "password": password})
+    assert r.status_code == 200, r.text
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+def test_user_admin_update_and_reset():
+    client = _client_with_staff()
+    ha = auth_header(client)
+    hs = _login(client, "staff@test.com", "staff123")
+    # non-admin cannot list users
+    assert client.get("/api/auth/users", headers=hs).status_code == 403
+    staff_id = next(u["id"] for u in client.get("/api/auth/users", headers=ha).json() if u["email"] == "staff@test.com")
+    # short password rejected
+    r = client.post("/api/auth/users", headers=ha, json={"name": "X", "email": "x@test.com", "password": "123", "role": "USER"})
+    assert r.status_code == 422, r.text
+    # deactivate staff -> login fails
+    r = client.put(f"/api/auth/users/{staff_id}", headers=ha, json={"is_active": False})
+    assert r.status_code == 200 and r.json()["is_active"] is False
+    assert client.post("/api/auth/login", json={"email": "staff@test.com", "password": "staff123"}).status_code in (401, 403)
+    # reactivate + promote
+    r = client.put(f"/api/auth/users/{staff_id}", headers=ha, json={"is_active": True, "role": "ADMIN"})
+    assert r.status_code == 200 and r.json()["role"] == "ADMIN"
+    # invalid role
+    assert client.put(f"/api/auth/users/{staff_id}", headers=ha, json={"role": "SUPER"}).status_code == 400
+    # self-demote / self-deactivate blocked
+    admin_id = next(u["id"] for u in client.get("/api/auth/users", headers=ha).json() if u["email"] == "admin@test.com")
+    assert client.put(f"/api/auth/users/{admin_id}", headers=ha, json={"role": "USER"}).status_code == 400
+    assert client.put(f"/api/auth/users/{admin_id}", headers=ha, json={"is_active": False}).status_code == 400
+    # reset password returns one-time temp password
+    r = client.post(f"/api/auth/users/{staff_id}/reset-password", headers=ha)
+    assert r.status_code == 200 and r.json()["temporary_password"]
+    assert client.post("/api/auth/login", json={"email": "staff@test.com", "password": r.json()["temporary_password"]}).status_code == 200
+    # 404 for unknown user
+    assert client.put("/api/auth/users/nope", headers=ha, json={"name": "Z"}).status_code == 404
+
+
+def test_tag_delete_admin_only_and_category_update_dup():
+    client = _client_with_staff()
+    ha = auth_header(client)
+    hs = _login(client, "staff@test.com", "staff123")
+    r = client.post("/api/tags", headers=hs, json={"name": "hop-dong"})
+    assert r.status_code == 200
+    tag_id = r.json()["id"]
+    # staff cannot delete tag anymore
+    assert client.delete(f"/api/tags/{tag_id}", headers=hs).status_code == 403
+    assert client.delete(f"/api/tags/{tag_id}", headers=ha).status_code == 200
+    # category update duplicate -> 409
+    assert client.post("/api/categories", headers=ha, json={"name": "Cat A"}).status_code == 200
+    assert client.post("/api/categories", headers=ha, json={"name": "Cat B"}).status_code == 200
+    cats = {c["name"]: c["id"] for c in client.get("/api/categories", headers=ha).json()}
+    assert client.put(f"/api/categories/{cats['Cat B']}", headers=ha, json={"name": "Cat A"}).status_code == 409
+
+
+def test_audit_trail_and_viewer():
+    from app.models.audit_log import AuditLog
+    client = get_client()
+    h = auth_header(client)
+    db = SessionLocal()
+    # upload audit must carry document_id (flush-before-audit fix)
+    r = client.post("/api/documents/upload", headers=h,
+                    files={"file": ("audit.txt", b"abc", "text/plain")}, data={"name": "audit.txt"})
+    assert r.status_code == 200
+    doc_id = r.json()["id"]
+    up = db.query(AuditLog).filter(AuditLog.action == "UPLOAD").order_by(AuditLog.created_at.desc()).first()
+    assert up is not None and up.document_id == doc_id and up.user_id is not None
+    # download audit
+    assert client.get(f"/api/documents/{doc_id}/download", headers=h).status_code == 200
+    assert db.query(AuditLog).filter(AuditLog.action == "DOWNLOAD", AuditLog.document_id == doc_id).count() >= 1
+    db.close()
+    # failed login is audited
+    assert client.post("/api/auth/login", json={"email": "admin@test.com", "password": "wrong"}).status_code == 401
+    db = SessionLocal()
+    assert db.query(AuditLog).filter(AuditLog.action == "LOGIN_FAIL").count() >= 1
+    db.close()
+    # audit viewer: admin ok, timing check via filter
+    r = client.get("/api/audit-logs", headers=h, params={"action": "UPLOAD"})
+    assert r.status_code == 200 and r.json()["total"] >= 1
+    assert r.json()["items"][0]["user_email"] == "admin@test.com"
+    # non-admin staff gets 403
+    client2 = _client_with_staff()
+    hs = _login(client2, "staff@test.com", "staff123")
+    assert client2.get("/api/audit-logs", headers=hs).status_code == 403
+
+
+def test_drive_token_crypto_roundtrip_and_passthrough():
+    from app.services import token_crypto
+    from cryptography.fernet import Fernet
+    # no key in test env -> plaintext passthrough
+    assert token_crypto._fernet() is None
+    assert token_crypto.protect_token("abc") == "abc"
+    assert token_crypto.reveal_token("abc") == "abc"
+    assert token_crypto.protect_token(None) is None
+    # with key -> enc: roundtrip
+    key = Fernet.generate_key().decode()
+    old = token_crypto.settings.DRIVE_TOKEN_KEY
+    token_crypto.settings.DRIVE_TOKEN_KEY = key
+    try:
+        enc = token_crypto.protect_token("secret-token")
+        assert enc.startswith("enc:") and enc != "secret-token"
+        assert token_crypto.reveal_token(enc) == "secret-token"
+        # idempotent + wrong key fails loudly
+        assert token_crypto.protect_token(enc) == enc
+        token_crypto.settings.DRIVE_TOKEN_KEY = Fernet.generate_key().decode()
+        try:
+            token_crypto.reveal_token(enc)
+            raise AssertionError("wrong key must fail")
+        except RuntimeError:
+            pass
+    finally:
+        token_crypto.settings.DRIVE_TOKEN_KEY = old
+
+
+def test_document_visibility_acl():
+    client = _client_with_staff()
+    ha = auth_header(client)
+    hs = _login(client, "staff@test.com", "staff123")
+    # admin uploads a PRIVATE doc
+    r = client.post("/api/documents/upload", headers=ha,
+                    files={"file": ("priv.txt", b"s3cret", "text/plain")},
+                    data={"name": "priv.txt", "visibility": "PRIVATE"})
+    assert r.status_code == 200
+    priv_id = r.json()["id"]
+    # staff cannot read/download it
+    assert client.get(f"/api/documents/{priv_id}", headers=hs).status_code == 403
+    assert client.get(f"/api/documents/{priv_id}/download", headers=hs).status_code == 403
+    assert "priv.txt" not in [d["name"] for d in client.get("/api/documents", headers=hs).json()["items"]]
+    # admin can
+    assert client.get(f"/api/documents/{priv_id}", headers=ha).status_code == 200
+    # staff's own PRIVATE doc is visible to staff, hidden from... (only 2 users; admin sees all)
+    r = client.post("/api/documents/upload", headers=hs,
+                    files={"file": ("mine.txt", b"x", "text/plain")},
+                    data={"name": "mine.txt", "visibility": "PRIVATE"})
+    assert r.status_code == 200
+    assert client.get(f"/api/documents/{r.json()['id']}", headers=hs).status_code == 200
+    # DEPARTMENT without department -> 400
+    r = client.post("/api/documents/upload", headers=hs,
+                    files={"file": ("d.txt", b"x", "text/plain")},
+                    data={"name": "d.txt", "visibility": "DEPARTMENT"})
+    assert r.status_code == 400
+    # give staff a department, upload DEPARTMENT doc visible to same-dept peer
+    staff_id = next(u["id"] for u in client.get("/api/auth/users", headers=ha).json() if u["email"] == "staff@test.com")
+    assert client.put(f"/api/auth/users/{staff_id}", headers=ha, json={"department": "Ke toan"}).status_code == 200
+    r = client.post("/api/documents/upload", headers=hs,
+                    files={"file": ("dept.txt", b"x", "text/plain")},
+                    data={"name": "dept.txt", "visibility": "DEPARTMENT"})
+    assert r.status_code == 200
+    dept_id = r.json()["id"]
+    assert r.json()["department"] == "Ke toan"
+    assert client.get(f"/api/documents/{dept_id}", headers=hs).status_code == 200
+    assert client.get(f"/api/documents/{dept_id}", headers=ha).status_code == 200  # admin bypass
+    # scope=mine only returns own uploads
+    names = [d["name"] for d in client.get("/api/documents", headers=hs, params={"scope": "mine"}).json()["items"]]
+    assert "mine.txt" in names and "priv.txt" not in names

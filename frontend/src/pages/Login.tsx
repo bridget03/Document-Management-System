@@ -112,16 +112,8 @@ export default function Login() {
             </Field>
             <Button
               type="submit"
-              loading={loading}
-              className="w-full h-12 rounded-lg bg-slate-900 text-white font-medium shadow-sm transition-all
-                      duration-200
-                      hover:bg-slate-700
-                      hover:shadow-md
-                      active:scale-[0.99]
-                      disabled:cursor-not-allowed
-                      disabled:opacity-60
-                    "
-            >
+              variant="primary"
+              loading={loading}>
               Sign in
             </Button>
             <p className="text-center text-xs text-gray-400">

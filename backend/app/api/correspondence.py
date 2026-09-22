@@ -1,11 +1,10 @@
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_admin
-from app.core.permissions import can_delete_corr, can_edit_corr, can_view_corr
+from app.core.permissions import can_delete_corr, can_edit_corr, can_view_corr, scope_corr_query
 from app.database.database import get_db
-from app.models.audit_log import AuditLog
 from app.models.correspondence import (
     CorrespondenceDocument,
     CorrespondenceLink,
@@ -38,8 +37,9 @@ def _direction_or_400(direction: str) -> str:
     return d
 
 
-def _audit(db: Session, user: User, action: str, corr_id: str | None):
-    db.add(AuditLog(user_id=user.id, action=action, correspondence_id=corr_id))
+def _audit(db: Session, user: User, action: str, corr_id: str | None, request: Request | None = None):
+    from app.services.audit_service import log as audit_log
+    audit_log(db, user.id, action, correspondence_id=corr_id, request=request)
 
 
 def _get_or_404(db: Session, direction: str, corr_id: str) -> CorrespondenceDocument:
@@ -72,13 +72,18 @@ def _require_delete(user: User, doc: CorrespondenceDocument) -> None:
 def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=None,
           department=None, security=None, urgency=None, status=None,
           date_from: date | None = None, date_to: date | None = None,
-          sort_by="issue_date", sort_order="desc", page=1, page_size=20):
+          sort_by="issue_date", sort_order="desc", scope="all", page=1, page_size=20):
     if sort_by not in SORTS:
         sort_by = "issue_date"
     col = getattr(CorrespondenceDocument, sort_by)
     col = col.desc() if sort_order == "desc" else col.asc()
+    query = scope_corr_query(db.query(CorrespondenceDocument), user)
+    if scope == "mine":
+        query = query.filter(CorrespondenceDocument.created_by == user.id)
+    elif scope == "department" and getattr(user, "department", None):
+        query = query.filter(CorrespondenceDocument.department == user.department)
     query = svc.apply_corr_filters(
-        db.query(CorrespondenceDocument), direction, q, type_id, signer,
+        query, direction, q, type_id, signer,
         department, security, urgency, status, date_from, date_to)
     total = query.count()
     items = query.order_by(col).offset((page - 1) * page_size).limit(page_size).all()
@@ -91,10 +96,11 @@ def list_incoming(q: str | None = None, type_id: str | None = None, signer: str 
                   department: str | None = None, security: str | None = None, urgency: str | None = None,
                   status: str | None = None, date_from: date | None = None, date_to: date | None = None,
                   sort_by: str = "issue_date", sort_order: str = "desc",
+                  scope: str = Query("all", description="all|mine|department"),
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("INCOMING", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, page, page_size)
 
 
 @router.get("/outgoing", response_model=PaginatedCorr)
@@ -102,10 +108,11 @@ def list_outgoing(q: str | None = None, type_id: str | None = None, signer: str 
                   department: str | None = None, security: str | None = None, urgency: str | None = None,
                   status: str | None = None, date_from: date | None = None, date_to: date | None = None,
                   sort_by: str = "issue_date", sort_order: str = "desc",
+                  scope: str = Query("all", description="all|mine|department"),
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("OUTGOING", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, page, page_size)
 
 
 @router.get("/internal", response_model=PaginatedCorr)
@@ -113,37 +120,38 @@ def list_internal(q: str | None = None, type_id: str | None = None, signer: str 
                   department: str | None = None, security: str | None = None, urgency: str | None = None,
                   status: str | None = None, date_from: date | None = None, date_to: date | None = None,
                   sort_by: str = "issue_date", sort_order: str = "desc",
+                  scope: str = Query("all", description="all|mine|department"),
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("INTERNAL", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, page, page_size)
 
 
 # ---------- CRUD ----------
 
-def _create(direction: str, payload: CorrCreate, db: Session, user: User):
+def _create(direction: str, payload: CorrCreate, db: Session, user: User, request: Request | None = None):
     try:
         doc = svc.create_document(db, direction, payload.model_dump(), user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    _audit(db, user, "CORR_CREATE", doc.id)
+    _audit(db, user, "CORR_CREATE", doc.id, request)
     db.commit()
     return doc
 
 
 @router.post("/incoming", response_model=CorrOut)
-def create_incoming(payload: CorrCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _create("INCOMING", payload, db, user)
+def create_incoming(payload: CorrCreate, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _create("INCOMING", payload, db, user, request)
 
 
 @router.post("/outgoing", response_model=CorrOut)
-def create_outgoing(payload: CorrCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _create("OUTGOING", payload, db, user)
+def create_outgoing(payload: CorrCreate, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _create("OUTGOING", payload, db, user, request)
 
 
 @router.post("/internal", response_model=CorrOut)
-def create_internal(payload: CorrCreate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _create("INTERNAL", payload, db, user)
+def create_internal(payload: CorrCreate, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _create("INTERNAL", payload, db, user, request)
 
 
 @router.get("/incoming/{corr_id}", response_model=CorrOut)
@@ -167,7 +175,7 @@ def get_internal(corr_id: str, db: Session = Depends(get_db), user: User = Depen
     return doc
 
 
-def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user: User):
+def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user: User, request: Request | None = None):
     doc = _get_or_404(db, direction, corr_id)
     _require_edit(user, doc)
     data = {k: v for k, v in payload.model_dump().items() if v is not None}
@@ -184,7 +192,17 @@ def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user
             if k in ("recipient", "sender", "signer", "issuing_department", "notes") and isinstance(v, str):
                 from app.database.database import normalize_text
                 v = normalize_text(v.strip()) or None
+            if k == "visibility" and isinstance(v, str):
+                from app.core.permissions import VISIBILITIES
+                v = v.upper()
+                if v not in VISIBILITIES:
+                    raise HTTPException(status_code=400, detail="Phạm vi chia sẻ không hợp lệ.")
+            if k == "department" and isinstance(v, str):
+                from app.database.database import normalize_text
+                v = normalize_text(v.strip()) or None
             setattr(doc, k, v)
+        if doc.visibility == "DEPARTMENT" and not doc.department:
+            raise HTTPException(status_code=400, detail="Chia sẻ theo phòng ban thì phải chọn phòng ban.")
         if "attachment_ids" in data:
             try:
                 # Reconcile: drop removed links to files, add new ones.
@@ -193,58 +211,58 @@ def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user
                 for att in [a for a in doc.attachments if a.document_id not in wanted]:
                     db.delete(att)
                 db.flush()
-                svc.attach_documents(db, doc, data["attachment_ids"] or [])
+                svc.attach_documents(db, doc, data["attachment_ids"] or [], viewer_id=user.id)
             except ValueError as e:
                 raise HTTPException(status_code=400, detail=str(e))
         if "links" in data:
             svc.replace_links(db, doc, data["links"] or [])
-    _audit(db, user, "CORR_UPDATE", doc.id)
+    _audit(db, user, "CORR_UPDATE", doc.id, request)
     db.commit()
     db.refresh(doc)
     return doc
 
 
 @router.put("/incoming/{corr_id}", response_model=CorrOut)
-def update_incoming(corr_id: str, payload: CorrUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _update("INCOMING", corr_id, payload, db, user)
+def update_incoming(corr_id: str, payload: CorrUpdate, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _update("INCOMING", corr_id, payload, db, user, request)
 
 
 @router.put("/outgoing/{corr_id}", response_model=CorrOut)
-def update_outgoing(corr_id: str, payload: CorrUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _update("OUTGOING", corr_id, payload, db, user)
+def update_outgoing(corr_id: str, payload: CorrUpdate, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _update("OUTGOING", corr_id, payload, db, user, request)
 
 
 @router.put("/internal/{corr_id}", response_model=CorrOut)
-def update_internal(corr_id: str, payload: CorrUpdate, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _update("INTERNAL", corr_id, payload, db, user)
+def update_internal(corr_id: str, payload: CorrUpdate, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _update("INTERNAL", corr_id, payload, db, user, request)
 
 
-def _delete(direction: str, corr_id: str, db: Session, user: User):
+def _delete(direction: str, corr_id: str, db: Session, user: User, request: Request | None = None):
     doc = _get_or_404(db, direction, corr_id)
     _require_delete(user, doc)
-    _audit(db, user, "CORR_DELETE", doc.id)
+    _audit(db, user, "CORR_DELETE", doc.id, request)
     db.delete(doc)  # attachments/links cascade; physical files in documents are kept
     db.commit()
     return {"success": True}
 
 
 @router.delete("/incoming/{corr_id}")
-def delete_incoming(corr_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _delete("INCOMING", corr_id, db, user)
+def delete_incoming(corr_id: str, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _delete("INCOMING", corr_id, db, user, request)
 
 
 @router.delete("/outgoing/{corr_id}")
-def delete_outgoing(corr_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _delete("OUTGOING", corr_id, db, user)
+def delete_outgoing(corr_id: str, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _delete("OUTGOING", corr_id, db, user, request)
 
 
 @router.delete("/internal/{corr_id}")
-def delete_internal(corr_id: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    return _delete("INTERNAL", corr_id, db, user)
+def delete_internal(corr_id: str, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    return _delete("INTERNAL", corr_id, db, user, request)
 
 
 @router.delete("/{direction}/{corr_id}/attachments/{att_id}")
-def remove_attachment(direction: str, corr_id: str, att_id: str,
+def remove_attachment(direction: str, corr_id: str, att_id: str, request: Request,
                        db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     d = _direction_or_400(direction)
     doc = _get_or_404(db, d, corr_id)
@@ -253,12 +271,13 @@ def remove_attachment(direction: str, corr_id: str, att_id: str,
     if not att:
         raise HTTPException(status_code=404, detail="Tệp đính kèm không tồn tại.")
     db.delete(att)  # physical file kept (shared storage policy)
+    _audit(db, user, "CORR_DETACH", doc.id, request)
     db.commit()
     return {"success": True}
 
 
 @router.delete("/{direction}/{corr_id}/links/{link_id}")
-def remove_link(direction: str, corr_id: str, link_id: str,
+def remove_link(direction: str, corr_id: str, link_id: str, request: Request,
                 db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     d = _direction_or_400(direction)
     doc = _get_or_404(db, d, corr_id)
@@ -269,6 +288,7 @@ def remove_link(direction: str, corr_id: str, link_id: str,
     if not link:
         raise HTTPException(status_code=404, detail="Liên kết không tồn tại.")
     db.delete(link)
+    _audit(db, user, "CORR_UNLINK", doc.id, request)
     db.commit()
     return {"success": True}
 
@@ -276,34 +296,34 @@ def remove_link(direction: str, corr_id: str, link_id: str,
 # ---------- Import ----------
 
 @router.post("/incoming/import", response_model=ImportResult)
-def import_incoming(payload: dict, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def import_incoming(payload: dict, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
         result = svc.import_rows(db, "INCOMING", payload.get("rows") or [], user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    _audit(db, user, "CORR_IMPORT", None)
+    _audit(db, user, "CORR_IMPORT", None, request)
     db.commit()
     return result
 
 
 @router.post("/outgoing/import", response_model=ImportResult)
-def import_outgoing(payload: dict, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def import_outgoing(payload: dict, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
         result = svc.import_rows(db, "OUTGOING", payload.get("rows") or [], user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    _audit(db, user, "CORR_IMPORT", None)
+    _audit(db, user, "CORR_IMPORT", None, request)
     db.commit()
     return result
 
 
 @router.post("/internal/import", response_model=ImportResult)
-def import_internal(payload: dict, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def import_internal(payload: dict, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     try:
         result = svc.import_rows(db, "INTERNAL", payload.get("rows") or [], user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    _audit(db, user, "CORR_IMPORT", None)
+    _audit(db, user, "CORR_IMPORT", None, request)
     db.commit()
     return result
 
@@ -319,19 +339,20 @@ def list_types(active_only: bool = False, db: Session = Depends(get_db), user: U
 
 
 @router.post("/types", response_model=DocTypeOut)
-def create_type(payload: DocTypeIn, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def create_type(payload: DocTypeIn, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     if db.query(DocumentType).filter(DocumentType.code == payload.code).first():
         raise HTTPException(status_code=409, detail=f"Mã loại '{payload.code}' đã tồn tại.")
     t = DocumentType(code=payload.code, name=payload.name, description=payload.description,
                      status=payload.status, default_signer=payload.default_signer)
     db.add(t)
+    _audit(db, admin, "TYPE_CREATE", None, request)
     db.commit()
     db.refresh(t)
     return t
 
 
 @router.put("/types/{type_id}", response_model=DocTypeOut)
-def update_type(type_id: str, payload: DocTypeIn, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def update_type(type_id: str, payload: DocTypeIn, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     t = db.query(DocumentType).filter(DocumentType.id == type_id).first()
     if not t:
         raise HTTPException(status_code=404, detail="Loại văn bản không tồn tại.")
@@ -339,13 +360,14 @@ def update_type(type_id: str, payload: DocTypeIn, db: Session = Depends(get_db),
         raise HTTPException(status_code=409, detail=f"Mã loại '{payload.code}' đã tồn tại.")
     t.code, t.name, t.description, t.status, t.default_signer = \
         payload.code, payload.name, payload.description, payload.status, payload.default_signer
+    _audit(db, admin, "TYPE_UPDATE", None, request)
     db.commit()
     db.refresh(t)
     return t
 
 
 @router.delete("/types/{type_id}")
-def delete_type(type_id: str, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def delete_type(type_id: str, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     t = db.query(DocumentType).filter(DocumentType.id == type_id).first()
     if not t:
         raise HTTPException(status_code=404, detail="Loại văn bản không tồn tại.")
@@ -353,6 +375,7 @@ def delete_type(type_id: str, db: Session = Depends(get_db), admin: User = Depen
     if used:
         raise HTTPException(status_code=409, detail=f"Loại văn bản đang được dùng bởi {used} văn bản. Hãy deactivate thay vì xóa.")
     db.delete(t)
+    _audit(db, admin, "TYPE_DELETE", None, request)
     db.commit()
     return {"success": True}
 
@@ -365,12 +388,13 @@ def get_settings(db: Session = Depends(get_db), user: User = Depends(get_current
 
 
 @router.put("/settings/{direction}", response_model=NumberConfigOut)
-def update_settings(direction: str, payload: NumberConfigIn, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+def update_settings(direction: str, payload: NumberConfigIn, request: Request, db: Session = Depends(get_db), admin: User = Depends(require_admin)):
     d = _direction_or_400(direction)
     cfg = svc.get_or_create_number_config(db, d)
     data = payload.model_dump(exclude_unset=True)
     for k, v in data.items():
         setattr(cfg, k, v)
+    _audit(db, admin, "NUMBERING_UPDATE", None, request)
     db.commit()
     db.refresh(cfg)
     return cfg

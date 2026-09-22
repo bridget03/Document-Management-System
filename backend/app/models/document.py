@@ -32,6 +32,11 @@ class Document(Base):
     source = Column(String(50), nullable=False, default="LOCAL_UPLOAD")
     sync_status = Column(String(50), nullable=False, default="NOT_SYNCED")
 
+    # Sharing scope: ORGANIZATION (everyone, legacy default) | DEPARTMENT
+    # (same department + owner + ADMIN) | PRIVATE (owner + ADMIN only).
+    visibility = Column(String(20), nullable=False, default="ORGANIZATION")
+    department = Column(String(255), nullable=True, index=True)
+
     google_drive_modified_at = Column(DateTime, nullable=True)
     last_synced_at = Column(DateTime, nullable=True)
 
