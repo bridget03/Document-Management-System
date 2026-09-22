@@ -42,20 +42,20 @@ const DEBOUNCE_MS = 400;
 const SORTS = [
   {
     value: "created_desc",
-    label: "Newest first",
+    label: "Mới nhất",
     sort_by: "created_at",
     sort_order: "desc",
   },
   {
     value: "created_asc",
-    label: "Oldest first",
+    label: "Cũ nhất",
     sort_by: "created_at",
     sort_order: "asc",
   },
   { value: "name_asc", label: "Name A–Z", sort_by: "name", sort_order: "asc" },
   {
     value: "size_desc",
-    label: "Largest first",
+    label: "Lớn nhất",
     sort_by: "file_size",
     sort_order: "desc",
   },
@@ -105,9 +105,14 @@ export default function Documents() {
   }, [searchInput]);
 
   const sortCfg = SORTS.find((s) => s.value === sort) || SORTS[0];
-  const filterCount = [fileExt, source, categoryId, tagId, syncStatus, scope !== "all" ? scope : ""].filter(
-    Boolean,
-  ).length;
+  const filterCount = [
+    fileExt,
+    source,
+    categoryId,
+    tagId,
+    syncStatus,
+    scope !== "all" ? scope : "",
+  ].filter(Boolean).length;
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: [
@@ -183,9 +188,9 @@ export default function Documents() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Documents</h1>
+          <h1 className="text-xl font-bold text-gray-900">Tài liệu</h1>
           <p className="mt-0.5 text-sm text-gray-500">
-            Manage, organize and access your documents.
+            Quản lý, tổ chức và truy cập tới tài liệu.
           </p>
         </div>
         <Link to="/upload">
@@ -322,9 +327,7 @@ export default function Documents() {
                 ? `${filterCount} filter${filterCount === 1 ? "" : "s"} applied`
                 : `Results for “${searchQuery}”`}
             </span>
-            <LinkButton onClick={clearAll}>
-              Clear all
-            </LinkButton>
+            <LinkButton onClick={clearAll}>Clear all</LinkButton>
           </div>
         )}
       </Card>
@@ -373,13 +376,13 @@ export default function Documents() {
             <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
-                  <th className="px-4 py-2.5 font-medium">Name</th>
-                  <th className="px-4 py-2.5 font-medium">Category</th>
-                  <th className="px-4 py-2.5 font-medium">Size</th>
-                  <th className="px-4 py-2.5 font-medium">Modified</th>
-                  <th className="px-4 py-2.5 font-medium">Status</th>
+                  <th className="px-4 py-2.5 font-medium">Tên</th>
+                  <th className="px-4 py-2.5 font-medium">Loại</th>
+                  <th className="px-4 py-2.5 font-medium">Kích cỡ</th>
+                  <th className="px-4 py-2.5 font-medium">Định dạng</th>
+                  <th className="px-4 py-2.5 font-medium">Tình trạng</th>
                   <th className="px-4 py-2.5 text-right font-medium">
-                    Actions
+                    Hành động
                   </th>
                 </tr>
               </thead>
@@ -511,7 +514,9 @@ export default function Documents() {
         footer={
           <>
             <Button onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="primary" loading={del.isPending}
+            <Button
+              variant="primary"
+              loading={del.isPending}
               onClick={() => deleteId && del.mutate(deleteId)}
             >
               Delete

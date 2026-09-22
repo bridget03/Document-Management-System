@@ -14,28 +14,23 @@
 ### Dashboard
 
 ![Dashboard](docs/screenshots/dashboard.png)
+![Dashboard](docs/screenshots/dashboard_1.png)
+![Dashboard](docs/screenshots/dashboard_2.png)
 
 ### Document Management
 
 ![Documents](docs/screenshots/documents.png)
 
-### Upload
-
-![Upload](docs/screenshots/upload.png)
-
-### Document Preview
-
-![Document preview](docs/screenshots/document-preview.png)
-
 ### Correspondence Management
 
-![Văn bản đến](docs/screenshots/correspondence.png)
-
-![Chi tiết văn bản](docs/screenshots/correspondence-detail.png)
+![Công văn đến](docs/screenshots/cv_den.png)
+![Công văn đến](docs/screenshots/cv_den_1.png)
+![Công văn đi](docs/screenshots/cv_di.png)
+![Công văn đi](docs/screenshots/cv_di_1.png)
 
 ### Google Drive
 
-![Google Drive](docs/screenshots/google-drive.png)
+![Google Drive](docs/screenshots/drive.png)
 
 ---
 

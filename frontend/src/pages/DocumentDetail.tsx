@@ -108,12 +108,16 @@ export default function DocumentDetail() {
     );
   }
   if (isError || !data) {
-    const errDetail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-    const msg = typeof errDetail === "string" ? errDetail : "Document not found";
+    const errDetail = (error as { response?: { data?: { detail?: unknown } } })
+      ?.response?.data?.detail;
+    const msg =
+      typeof errDetail === "string" ? errDetail : "Document not found";
     return (
       <Card className="px-6 py-10 text-center">
         <p className="font-semibold text-gray-900">{msg}</p>
-        <p className="mt-1 text-sm text-gray-500">It may have been deleted or you lack permission.</p>
+        <p className="mt-1 text-sm text-gray-500">
+          Tài liệu này có thể đã bị xoá hoặc bạn không có quyền xem.
+        </p>
         <Link
           to="/documents"
           className="mt-3 inline-block text-sm font-medium text-brand-700"
@@ -234,7 +238,8 @@ export default function DocumentDetail() {
                   onChange={(e) => setDescription(e.target.value)}
                 />
               </Field>
-              <Button variant="primary"
+              <Button
+                variant="primary"
                 size="sm"
                 loading={save.isPending}
                 onClick={() => save.mutate()}

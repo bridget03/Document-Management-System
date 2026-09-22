@@ -46,7 +46,7 @@ const groups: {
     items: [
       {
         to: "/categories",
-        label: "Categories",
+        label: "Loại tài liệu",
         icon: <FolderOpen size={17} />,
       },
       { to: "/tags", label: "Thẻ", icon: <Tags size={17} /> },
