@@ -22,7 +22,7 @@ import { IconButton } from "../ui/Button";
 import logoUrl from "../../assets/logo.jpeg";
 
 const groups: {
-  label: string;
+  label?: string;
   adminOnly?: boolean;
   items: {
     to: string;
@@ -157,10 +157,12 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         {groups
           .filter((g) => user?.role === "ADMIN" || !g.adminOnly)
           .map((g) => (
-            <div key={g.label}>
-              <p className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-                {g.label}
-              </p>
+            <div key={g.label || g.items[0]?.to}>
+              {g.label && (
+                <p className="px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  {g.label}
+                </p>
+              )}
               <div className="space-y-0.5">
                 {g.items
                   .filter((i) => user?.role === "ADMIN" || !i.adminOnly)
