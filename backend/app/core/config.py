@@ -29,5 +29,13 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
 
+    @property
+    def database_url(self) -> str:
+        # Render/Heroku-style URLs use postgres:// which SQLAlchemy 2.x rejects.
+        url = self.DATABASE_URL
+        if url.startswith("postgres://"):
+            url = "postgresql://" + url[len("postgres://"):]
+        return url
+
 
 settings = Settings()

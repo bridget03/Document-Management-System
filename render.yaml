@@ -1,0 +1,36 @@
+# Render Blueprint: backend (Docker) + Postgres miễn phí cho môi trường test tạm.
+# Deploy: dashboard.render.com -> New -> Blueprint -> chọn repo này.
+services:
+  - type: web
+    name: dms-backend
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /api/health
+    # Chạy migration trước rồi mới start app (DB trống cũng tự lên schema head).
+    # Render cấp PORT động nên phải dùng $PORT, không hardcode 8000.
+    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dms-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        value: http://localhost:5173 # TODO: đổi thành URL Vercel sau bước 3
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://dms-backend.onrender.com/api/google-drive/callback # TODO: sửa theo URL thật sau bước 2
+      - key: DRIVE_TOKEN_KEY
+        sync: false # nên đặt Fernet key riêng cho môi trường test
+
+databases:
+  - name: dms-db
+    plan: free # DB free có thời hạn, đủ cho test tạm
