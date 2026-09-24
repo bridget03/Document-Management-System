@@ -8,9 +8,9 @@ services:
     dockerContext: ./backend
     plan: free
     healthCheckPath: /api/health
-    # Chạy migration trước rồi mới start app (DB trống cũng tự lên schema head).
-    # Render cấp PORT động nên phải dùng $PORT, không hardcode 8000.
-    dockerCommand: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    # Render chạy dockerCommand như file script (không phải sh -c),
+    # nên lệnh start nằm ở backend/start.sh (đọc $PORT động của Render).
+    dockerCommand: ./start.sh
     envVars:
       - key: APP_ENV
         value: production
