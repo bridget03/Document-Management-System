@@ -29,6 +29,8 @@ import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import CorrespondenceTable from "../components/correspondence/CorrespondenceTable";
+import IncomingTable from "../components/correspondence/IncomingTable";
+import OutgoingTable from "../components/correspondence/OutgoingTable";
 import ExcelImportModal from "../components/correspondence/ExcelImportModal";
 import {
   STATUS_OPTIONS,
@@ -276,12 +278,26 @@ export default function CorrespondenceList({
               Đang cập nhật…
             </p>
           )}
-          <CorrespondenceTable
-            items={data?.items || []}
-            dir={direction}
-            base={base}
-            onDelete={(d) => setDel(d)}
-          />
+          {direction === "INCOMING" ? (
+            <IncomingTable
+              items={data?.items || []}
+              base={base}
+              onDelete={(d) => setDel(d)}
+            />
+          ) : direction === "OUTGOING" ? (
+            <OutgoingTable
+              items={data?.items || []}
+              base={base}
+              onDelete={(d) => setDel(d)}
+            />
+          ) : (
+            <CorrespondenceTable
+              items={data?.items || []}
+              dir={direction}
+              base={base}
+              onDelete={(d) => setDel(d)}
+            />
+          )}
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2.5 text-sm">
             <span className="text-gray-500">
               Trang {data?.page} / {data?.total_pages} · {data?.total} văn bản

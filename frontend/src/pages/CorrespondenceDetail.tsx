@@ -24,6 +24,7 @@ import {
   STATUS_CONFIG,
   LEVEL_LABELS,
   fmtDateVN,
+  splitPartyList,
   DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
@@ -180,7 +181,24 @@ export default function CorrespondenceDetail({
                 ? `${data.doc_type.code} · ${data.doc_type.name}`
                 : "—"}
             </InfoRow>
-            <InfoRow label={partyLabel}>{party || "—"}</InfoRow>
+            <InfoRow label={partyLabel}>
+              {direction === "INCOMING" ? (
+                party || "—"
+              ) : splitPartyList(party).length > 0 ? (
+                <span className="flex flex-wrap gap-1.5">
+                  {splitPartyList(party).map((p, i) => (
+                    <span
+                      key={`${p}-${i}`}
+                      className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
+                    >
+                      {p}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                "—"
+              )}
+            </InfoRow>
             <InfoRow label="Số lượng">{data.quantity ?? "—"}</InfoRow>
             <InfoRow label="Người ký">{data.signer || "—"}</InfoRow>
             <InfoRow label="Mức độ bảo mật">

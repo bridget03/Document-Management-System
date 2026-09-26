@@ -57,7 +57,7 @@ export default function Upload() {
   return (
     <div className="mx-auto max-w-xl space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Upload document</h1>
+        <h1 className="text-xl font-bold text-gray-900">Tải tài liệu lên</h1>
         <p className="mt-0.5 text-sm text-gray-500">
           Add a file to your workspace with metadata.
         </p>
@@ -93,13 +93,15 @@ export default function Upload() {
             ) : (
               <>
                 <p className="mt-2 text-sm font-medium text-gray-700">
-                  Drag &amp; drop file here
+                  Kéo &amp; thả file vào đây
                 </p>
-                <p className="mt-0.5 text-xs text-gray-500">or</p>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  Hoặc nhấn nút bên dưới để chọn file
+                </p>
               </>
             )}
             <label className="mt-2 inline-block cursor-pointer rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
-              Browse files
+              Browser
               <input
                 type="file"
                 className="sr-only"
@@ -109,7 +111,7 @@ export default function Upload() {
             </label>
           </div>
 
-          <Field label="Display name (optional)">
+          <Field label="Tên hiển thị">
             <TextInput
               placeholder="Leave empty to use the file name"
               value={name}
@@ -117,7 +119,7 @@ export default function Upload() {
             />
           </Field>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Category">
+            <Field label="Loại">
               <Select
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
@@ -130,7 +132,7 @@ export default function Upload() {
                 ))}
               </Select>
             </Field>
-            <Field label="Tags (comma separated)">
+            <Field label="Thẻ">
               <TextInput
                 placeholder="hop-dong, 2026"
                 value={tags}
@@ -138,7 +140,7 @@ export default function Upload() {
               />
             </Field>
           </div>
-          <Field label="Description">
+          <Field label="Mô tả">
             <TextArea
               rows={3}
               placeholder="What is this document about?"
@@ -187,7 +189,7 @@ export default function Upload() {
 
           <div className="flex justify-center gap-2 border-t border-gray-100 pt-4">
             <Button type="button" onClick={() => nav(-1)}>
-              Cancel
+              Huỷ bỏ
             </Button>
             <Button
               type="submit"

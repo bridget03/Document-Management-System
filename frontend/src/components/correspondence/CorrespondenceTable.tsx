@@ -6,6 +6,7 @@ import { IconButton, MenuItem } from "../ui/Button";
 import {
   STATUS_CONFIG,
   fmtDateVN,
+  splitPartyList,
   DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
@@ -26,7 +27,7 @@ export default function CorrespondenceTable({
 }: Props) {
   const [menuId, setMenuId] = useState<string | null>(null);
   const cfg = DIRECTION_CONFIG[dir];
-  const party = (d: CorrDoc) => d[cfg.partyKey] || "—";
+  const partyList = (d: CorrDoc) => splitPartyList(d[cfg.partyKey]);
 
   return (
     <div className="overflow-x-auto">
@@ -64,8 +65,26 @@ export default function CorrespondenceTable({
                 <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
                   {d.doc_type ? `${d.doc_type.code} · ${d.doc_type.name}` : "—"}
                 </td>
-                <td className="max-w-[220px] truncate px-4 py-2.5 text-gray-600">
-                  {party(d)}
+                <td className="max-w-[260px] px-4 py-2.5 text-gray-600">
+                  {(() => {
+                    const list = partyList(d);
+                    if (list.length === 0) return "—";
+                    return (
+                      <span className="flex flex-wrap items-center gap-1">
+                        <span className="max-w-[180px] truncate" title={list[0]}>
+                          {list[0]}
+                        </span>
+                        {list.length > 1 && (
+                          <span
+                            className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700"
+                            title={list.slice(1).join("; ")}
+                          >
+                            +{list.length - 1}
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
                   {d.signer || "—"}

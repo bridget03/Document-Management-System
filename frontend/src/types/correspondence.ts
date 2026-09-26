@@ -229,6 +229,14 @@ export function validateRowClient(data: Record<string, unknown>, direction: Dire
   return errs;
 }
 
+/** Tách chuỗi nơi nhận/nơi gửi "A; B; C" thành list để hiển thị chip. */
+export function splitPartyList(s?: string | null): string[] {
+  return (s || '')
+    .split(/[;\n]+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
 export function fmtDateVN(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso.length <= 10 ? iso + 'T00:00:00' : iso);

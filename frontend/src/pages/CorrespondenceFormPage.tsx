@@ -5,6 +5,8 @@ import { ArrowLeft } from 'lucide-react';
 import { corrCreate, corrGet, corrUpdate } from '../services/correspondenceApi';
 import { Card, Skeleton } from '../components/ui/Skeleton';
 import CorrespondenceForm, { type CorrFormValue } from '../components/correspondence/CorrespondenceForm';
+import IncomingForm from '../components/correspondence/IncomingForm';
+import OutgoingForm from '../components/correspondence/OutgoingForm';
 import type { CorrDoc, Direction } from '../types/correspondence';
 import { DIRECTION_CONFIG } from '../types/correspondence';
 
@@ -14,16 +16,28 @@ interface Props {
   base: string;
 }
 
-function toPayload(v: CorrFormValue) {
+function toPayload(v: CorrFormValue, direction: Direction) {
   const num = (s: string) => (s.trim() === '' ? undefined : Number(s.trim()));
   const dt = (s: string) => (s.trim() === '' ? undefined : s.trim());
+  // Đi/Nội bộ: chuẩn hoá "A;; B ;  C" -> "A; B; C" (nhiều nơi).
+  // Đến: nơi gửi chỉ 1 -> trim giữ nguyên.
+  const multiParty = (s: string) => {
+    const list = s
+      .split(/[;\n]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    return list.length > 0 ? list.join('; ') : undefined;
+  };
+  const singleParty = (s: string) => s.trim() || undefined;
   const links = v.links
     .map((l) => ({ name: l.name.trim() || l.url.trim(), url: l.url.trim() }))
     .filter((l) => l.url);
   return {
     document_number: v.document_number.trim(),
-    recipient: v.recipient.trim() || undefined,
-    sender: v.sender.trim() || undefined,
+    recipient:
+      direction === 'INCOMING' ? singleParty(v.recipient) : multiParty(v.recipient),
+    sender:
+      direction === 'INCOMING' ? singleParty(v.sender) : multiParty(v.sender),
     quantity: num(v.quantity),
     signer: v.signer.trim() || undefined,
     security_level: v.security_level || undefined,
@@ -60,8 +74,8 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
   const save = useMutation({
     mutationFn: (payload: { value: CorrFormValue; and: 'close' | 'add' | 'open' }) =>
       isEdit
-        ? corrUpdate(apiDir, id!, toPayload(payload.value))
-        : corrCreate(apiDir, toPayload(payload.value)),
+        ? corrUpdate(apiDir, id!, toPayload(payload.value, direction))
+        : corrCreate(apiDir, toPayload(payload.value, direction)),
     onSuccess: (doc, { and }) => {
       qc.invalidateQueries({ queryKey: ['corr', direction] });
       qc.invalidateQueries({ queryKey: ['corr-doc', id] });
@@ -94,6 +108,32 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
         <Card className="space-y-3 p-5">
           <Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-full" /><Skeleton className="h-24 w-full" />
         </Card>
+      ) : direction === 'INCOMING' ? (
+        <IncomingForm
+          key={formKey}
+          initial={isEdit ? data || null : null}
+          pending={save.isPending}
+          serverError={serverError}
+          createMode={!isEdit}
+          onCancel={() => nav(isEdit ? `${base}/${id}` : base)}
+          onSubmit={(value, and) => {
+            setServerError('');
+            save.mutate({ value, and });
+          }}
+        />
+      ) : direction === 'OUTGOING' ? (
+        <OutgoingForm
+          key={formKey}
+          initial={isEdit ? data || null : null}
+          pending={save.isPending}
+          serverError={serverError}
+          createMode={!isEdit}
+          onCancel={() => nav(isEdit ? `${base}/${id}` : base)}
+          onSubmit={(value, and) => {
+            setServerError('');
+            save.mutate({ value, and });
+          }}
+        />
       ) : (
         <CorrespondenceForm
           key={formKey}

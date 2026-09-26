@@ -45,6 +45,8 @@ interface Props {
   pending: boolean;
   serverError: string;
   createMode: boolean;
+  /** Đến = single (1 nơi gửi), Đi/Nội bộ = multiple. Mặc định: INCOMING=false, còn lại=true. */
+  multipleParty?: boolean;
   onSubmit: (value: CorrFormValue, and: "close" | "add" | "open") => void;
   onCancel: () => void;
 }
@@ -70,6 +72,18 @@ const empty: CorrFormValue = {
   attachment_ids: [],
   links: [],
 };
+
+/** Nhiều nơi nhận/nơi gửi lưu chung 1 chuỗi, phân cách bằng "; ". */
+export function splitParty(s: string): string[] {
+  return (s || "")
+    .split(/[;\n]+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
+export function joinParty(list: string[]): string {
+  return list.join("; ");
+}
 
 function toValue(d: CorrDoc): CorrFormValue {
   return {
@@ -105,6 +119,7 @@ export default function CorrespondenceForm({
   pending,
   serverError,
   createMode,
+  multipleParty,
   onSubmit,
   onCancel,
 }: Props) {
@@ -113,6 +128,7 @@ export default function CorrespondenceForm({
   const [errors, setErrors] = useState<string[]>([]);
   const [linkName, setLinkName] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
+  const [partyInput, setPartyInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const { data: types } = useQuery<DocType[]>({
     queryKey: ["corr-types-active"],
@@ -122,10 +138,48 @@ export default function CorrespondenceForm({
   useEffect(() => {
     setV(initial ? toValue(initial) : empty);
     setErrors([]);
+    setPartyInput("");
   }, [initial]);
 
   const set = (k: keyof CorrFormValue, val: string) =>
     setV((p) => ({ ...p, [k]: val }));
+
+  const partyLabel = DIRECTION_CONFIG[direction].partyLabel;
+  const partyKey = DIRECTION_CONFIG[direction].partyKey;
+  // Công văn đến: chỉ 1 nơi gửi -> ô text đơn. Đi/Nội bộ: nhiều nơi -> chip tag.
+  const allowMultiple = multipleParty ?? direction !== "INCOMING";
+  const partyList = allowMultiple ? splitParty(v[partyKey]) : [];
+
+  const addParty = (raw?: string) => {
+    const src = raw !== undefined ? raw : partyInput;
+    // Cho phép paste "A; B; C" hoặc mỗi dòng 1 nơi nhận.
+    const parts = src
+      .split(/[;\n]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    setV((p) => {
+      const cur = splitParty(p[partyKey]);
+      const seen = new Set(cur.map((s) => s.toLowerCase()));
+      const next = [...cur];
+      for (const t of parts) {
+        if (!seen.has(t.toLowerCase())) {
+          next.push(t);
+          seen.add(t.toLowerCase());
+        }
+      }
+      return { ...p, [partyKey]: joinParty(next) };
+    });
+    setPartyInput("");
+  };
+
+  const removeParty = (idx: number) => {
+    setV((p) => {
+      const cur = splitParty(p[partyKey]);
+      cur.splice(idx, 1);
+      return { ...p, [partyKey]: joinParty(cur) };
+    });
+  };
 
   const onTypeChange = (id: string) => {
     setV((p) => {
@@ -185,36 +239,79 @@ export default function CorrespondenceForm({
   };
 
   const submit = (and: "close" | "add" | "open" = "close") => {
+    let normalized = { ...v };
+    if (allowMultiple) {
+      // Gộp input đang gõ dở (nếu user quên Enter) rồi chuẩn hoá "; ".
+      const pendingParts = partyInput
+        .split(/[;\n]+/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (pendingParts.length > 0) {
+        const cur = splitParty(v[partyKey]);
+        const seen = new Set(cur.map((s) => s.toLowerCase()));
+        for (const t of pendingParts) {
+          if (!seen.has(t.toLowerCase())) {
+            cur.push(t);
+            seen.add(t.toLowerCase());
+          }
+        }
+        normalized = { ...v, [partyKey]: joinParty(cur) };
+        setV(normalized);
+        setPartyInput("");
+      } else {
+        // Chuẩn hoá khoảng trắng / dấu ;; thừa.
+        normalized = {
+          ...v,
+          recipient: joinParty(splitParty(v.recipient)),
+          sender: joinParty(splitParty(v.sender)),
+        };
+      }
+    } else {
+      // Single: chỉ trim, giữ nguyên 1 giá trị (công văn đến - nơi gửi).
+      normalized = {
+        ...v,
+        recipient: v.recipient.trim(),
+        sender: v.sender.trim(),
+      };
+    }
     const errs: string[] = [];
-    if (!v.document_number.trim()) errs.push("Số văn bản không được để trống.");
-    if (direction !== "INCOMING" && !v.recipient.trim())
+    if (!normalized.document_number.trim())
+      errs.push("Số văn bản không được để trống.");
+    if (direction !== "INCOMING" && !normalized.recipient.trim())
       errs.push(
         direction === "INTERNAL"
           ? "Bộ phận/người nhận không được để trống."
           : "Nơi nhận không được để trống."
       );
-    if (direction === "INCOMING" && !v.sender.trim())
+    if (direction === "INCOMING" && !normalized.sender.trim())
       errs.push("Nơi gửi không được để trống.");
-    if (!v.signer.trim()) errs.push("Vui lòng chọn/nhập người ký.");
-    if (!v.document_type_id) errs.push("Vui lòng chọn loại văn bản.");
-    if (!v.issuing_department.trim())
+    if (!normalized.signer.trim()) errs.push("Vui lòng chọn/nhập người ký.");
+    if (!normalized.document_type_id) errs.push("Vui lòng chọn loại văn bản.");
+    if (!normalized.issuing_department.trim())
       errs.push("Vui lòng nhập bộ phận phát hành.");
     if (
-      v.quantity.trim() &&
-      (!/^\d+$/.test(v.quantity.trim()) || Number(v.quantity) < 0)
+      normalized.quantity.trim() &&
+      (!/^\d+$/.test(normalized.quantity.trim()) ||
+        Number(normalized.quantity) < 0)
     )
       errs.push("Số lượng phải là số nguyên >= 0.");
-    if (v.effective_date && v.expiry_date && v.effective_date > v.expiry_date)
+    if (
+      normalized.effective_date &&
+      normalized.expiry_date &&
+      normalized.effective_date > normalized.expiry_date
+    )
       errs.push("Ngày hiệu lực phải trước hoặc bằng ngày hết hiệu lực.");
-    if (v.visibility === "DEPARTMENT" && !v.department.trim())
+    if (normalized.visibility === "DEPARTMENT" && !normalized.department.trim())
       errs.push("Chia sẻ theo phòng ban thì phải nhập phòng ban.");
+    if (
+      normalized.recipient.length > 500 ||
+      normalized.sender.length > 500
+    )
+      errs.push("Nơi nhận/nơi gửi quá dài (tối đa 500 ký tự). Hãy rút gọn.");
     setErrors(errs);
     if (errs.length > 0) return;
-    onSubmit(v, and);
+    onSubmit(normalized, and);
   };
-
-  const partyLabel = DIRECTION_CONFIG[direction].partyLabel;
-  const partyKey = DIRECTION_CONFIG[direction].partyKey;
 
   return (
     <div className="space-y-4">
@@ -261,10 +358,87 @@ export default function CorrespondenceForm({
             </div>
           </Field>
           <Field label={partyLabel}>
-            <TextInput
-              value={v[partyKey]}
-              onChange={(e) => set(partyKey, e.target.value)}
-            />
+            {allowMultiple ? (
+              <>
+                <div className="rounded-md border border-gray-300 px-2 py-1.5 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
+              {partyList.length > 0 && (
+                <div className="mb-1.5 flex flex-wrap gap-1.5">
+                  {partyList.map((p, i) => (
+                    <span
+                      key={`${p}-${i}`}
+                      className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-800 ring-1 ring-inset ring-brand-200"
+                    >
+                      <span className="max-w-[220px] truncate" title={p}>
+                        {p}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label={`Xóa ${p}`}
+                        className="rounded-full p-0.5 hover:bg-brand-100"
+                        onClick={() => removeParty(i)}
+                      >
+                        <X size={12} />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <input
+                  value={partyInput}
+                  onChange={(e) => setPartyInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === ";") {
+                      e.preventDefault();
+                      addParty();
+                    } else if (
+                      e.key === "Backspace" &&
+                      !partyInput &&
+                      partyList.length > 0
+                    ) {
+                      removeParty(partyList.length - 1);
+                    }
+                  }}
+                  onPaste={(e) => {
+                    const text = e.clipboardData.getData("text");
+                    if (/[;\n]/.test(text)) {
+                      e.preventDefault();
+                      addParty(text);
+                    }
+                  }}
+                  placeholder={
+                    direction === "INCOMING"
+                      ? "Nhập nơi gửi rồi Enter — VD: Sở XYZ"
+                      : direction === "INTERNAL"
+                        ? "Nhập từng bộ phận/người nhận rồi Enter"
+                        : "Nhập từng nơi nhận rồi Enter — VD: Công ty ABC"
+                  }
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                />
+                <button
+                  type="button"
+                  onClick={() => addParty()}
+                  disabled={!partyInput.trim()}
+                  className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50 disabled:opacity-40"
+                >
+                  Thêm
+                </button>
+              </div>
+                </div>
+                <p className="mt-1 text-xs text-gray-500">
+                  Có nhiều nơi nhận thì nhập từng nơi rồi Enter. Có thể paste
+                  danh sách cách nhau bằng dấu ; hoặc xuống dòng. Lưu trữ dạng
+                  “A; B; C”
+                  {partyList.length > 0 && ` — đã nhập ${partyList.length} nơi.`}
+                </p>
+              </>
+            ) : (
+              <TextInput
+                value={v[partyKey]}
+                onChange={(e) => set(partyKey, e.target.value)}
+                placeholder="VD: Sở XYZ"
+              />
+            )}
           </Field>
           <Field label="Số lượng văn bản">
             <TextInput

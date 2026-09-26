@@ -11,6 +11,12 @@ import PreviewPage from "../pages/PreviewPage";
 import CorrespondenceList from "../pages/CorrespondenceList";
 import CorrespondenceFormPage from "../pages/CorrespondenceFormPage";
 import CorrespondenceDetail from "../pages/CorrespondenceDetail";
+import IncomingList from "../pages/IncomingList";
+import OutgoingList from "../pages/OutgoingList";
+import IncomingFormPage from "../pages/IncomingFormPage";
+import OutgoingFormPage from "../pages/OutgoingFormPage";
+import IncomingDetail from "../pages/IncomingDetail";
+import OutgoingDetail from "../pages/OutgoingDetail";
 import DocTypes from "../pages/DocTypes";
 import CorrSettings from "../pages/CorrSettings";
 import Upload from "../pages/Upload";
@@ -115,104 +121,14 @@ export default function Router() {
             </Guard>
           }
         />
-        <Route
-          path="/correspondence/incoming"
-          element={
-            <Guard>
-              <CorrespondenceList
-                direction="INCOMING"
-                title="Công văn đến"
-                subtitle="Quản lý các văn bản nhận từ bên ngoài."
-                base="/correspondence/incoming"
-              />
-            </Guard>
-          }
-        />
-        <Route
-          path="/correspondence/outgoing"
-          element={
-            <Guard>
-              <CorrespondenceList
-                direction="OUTGOING"
-                title="Công văn đi"
-                subtitle="Quản lý các công văn phát hành từ doanh nghiệp."
-                base="/correspondence/outgoing"
-              />
-            </Guard>
-          }
-        />
-        <Route
-          path="/correspondence/incoming/new"
-          element={
-            <Guard>
-              <CorrespondenceFormPage
-                direction="INCOMING"
-                title="Thêm công văn đến"
-                base="/correspondence/incoming"
-              />
-            </Guard>
-          }
-        />
-        <Route
-          path="/correspondence/outgoing/new"
-          element={
-            <Guard>
-              <CorrespondenceFormPage
-                direction="OUTGOING"
-                title="Thêm công văn đi"
-                base="/correspondence/outgoing"
-              />
-            </Guard>
-          }
-        />
-        <Route
-          path="/correspondence/incoming/:id"
-          element={
-            <Guard>
-              <CorrespondenceDetail
-                direction="INCOMING"
-                title="Văn bản đến"
-                base="/correspondence/incoming"
-              />
-            </Guard>
-          }
-        />
-        <Route
-          path="/correspondence/outgoing/:id"
-          element={
-            <Guard>
-              <CorrespondenceDetail
-                direction="OUTGOING"
-                title="Văn bản đi"
-                base="/correspondence/outgoing"
-              />
-            </Guard>
-          }
-        />
-        <Route
-          path="/correspondence/incoming/:id/edit"
-          element={
-            <Guard>
-              <CorrespondenceFormPage
-                direction="INCOMING"
-                title="Sửa văn bản đến"
-                base="/correspondence/incoming"
-              />
-            </Guard>
-          }
-        />
-        <Route
-          path="/correspondence/outgoing/:id/edit"
-          element={
-            <Guard>
-              <CorrespondenceFormPage
-                direction="OUTGOING"
-                title="Sửa văn bản đi"
-                base="/correspondence/outgoing"
-              />
-            </Guard>
-          }
-        />
+        <Route path="/correspondence/incoming" element={<Guard><IncomingList /></Guard>} />
+        <Route path="/correspondence/outgoing" element={<Guard><OutgoingList /></Guard>} />
+        <Route path="/correspondence/incoming/new" element={<Guard><IncomingFormPage /></Guard>} />
+        <Route path="/correspondence/outgoing/new" element={<Guard><OutgoingFormPage /></Guard>} />
+        <Route path="/correspondence/incoming/:id" element={<Guard><IncomingDetail /></Guard>} />
+        <Route path="/correspondence/outgoing/:id" element={<Guard><OutgoingDetail /></Guard>} />
+        <Route path="/correspondence/incoming/:id/edit" element={<Guard><IncomingFormPage /></Guard>} />
+        <Route path="/correspondence/outgoing/:id/edit" element={<Guard><OutgoingFormPage /></Guard>} />
         <Route
           path="/correspondence/internal"
           element={
