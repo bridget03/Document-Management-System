@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     DRIVE_TOKEN_KEY: str = ""  # Fernet key (generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
     SYNC_INTERVAL_MINUTES: int = 30
     CORS_ORIGINS: str = "http://localhost:5173"
+    # Regex cho origin động (VD: Vercel preview URL đổi hash mỗi deploy).
+    # VD: https://.*\.vercel\.app
+    CORS_ORIGIN_REGEX: str = ""
 
     ALGORITHM: str = "HS256"
 

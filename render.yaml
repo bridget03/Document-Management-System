@@ -21,7 +21,9 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGINS
-        value: http://localhost:5173 # TODO: đổi thành URL Vercel sau bước 3
+        value: http://localhost:5173,https://document-management-system-6ao212ccr-bridget03s-projects.vercel.app
+      - key: CORS_ORIGIN_REGEX
+        value: https://.*\.vercel\.app
       - key: GOOGLE_CLIENT_ID
         sync: false
       - key: GOOGLE_CLIENT_SECRET

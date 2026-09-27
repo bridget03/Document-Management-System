@@ -32,8 +32,9 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         # Never mix "*" with allow_credentials (browsers reject it);
-        # allowed origins come only from CORS_ORIGINS.
+        # allowed origins come only from CORS_ORIGINS / CORS_ORIGIN_REGEX.
         allow_origins=settings.cors_origins_list,
+        allow_origin_regex=settings.CORS_ORIGIN_REGEX.strip() or None,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
