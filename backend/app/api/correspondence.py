@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_admin
-from app.core.permissions import can_delete_corr, can_edit_corr, can_view_corr, scope_corr_query
+from app.core.permissions import can_delete_corr, can_edit_corr, can_view_corr, dept_match_filter, scope_corr_query
 from app.database.database import get_db
 from app.models.correspondence import (
     CorrespondenceDocument,
@@ -81,7 +81,7 @@ def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=
     if scope == "mine":
         query = query.filter(CorrespondenceDocument.created_by == user.id)
     elif scope == "department" and getattr(user, "department", None):
-        query = query.filter(CorrespondenceDocument.department == user.department)
+        query = query.filter(dept_match_filter(CorrespondenceDocument.department, user.department))
     query = svc.apply_corr_filters(
         query, direction, q, type_id, signer,
         department, security, urgency, status, date_from, date_to)

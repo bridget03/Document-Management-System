@@ -10,7 +10,7 @@ from app.models.document import Document
 from app.models.tag import Tag
 from app.models.user import User
 from app.schemas.document import DocumentOut, DocumentUpdate, PaginatedDocuments
-from app.core.permissions import can_view_document, scope_document_query
+from app.core.permissions import can_view_document, dept_match_filter, scope_document_query
 from app.services.audit_service import log as audit_log
 from app.services.document_service import sanitize_filename, validate_file
 from app.services.file_service import LocalStorageProvider
@@ -74,7 +74,7 @@ def list_documents(
     if scope == "mine":
         query = query.filter(Document.uploaded_by == user.id)
     elif scope == "department" and getattr(user, "department", None):
-        query = query.filter(Document.department == user.department)
+        query = query.filter(dept_match_filter(Document.department, user.department))
     query = apply_filters(
         query, q, category_id, tag_id, file_extension, mime_type, uploaded_by,
         source, sync_status, created_from, created_to, updated_from, updated_to,

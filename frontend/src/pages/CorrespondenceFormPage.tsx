@@ -51,7 +51,7 @@ function toPayload(v: CorrFormValue, direction: Direction) {
     processing_status: v.processing_status,
     notes: v.notes.trim() || undefined,
     visibility: v.visibility || undefined,
-    department: v.department.trim() || undefined,
+    department: multiParty(v.department),
     attachment_ids: v.attachment_ids.map((a) => a.document_id),
     links,
   };

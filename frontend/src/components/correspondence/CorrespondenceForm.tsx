@@ -129,6 +129,7 @@ export default function CorrespondenceForm({
   const [linkName, setLinkName] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [partyInput, setPartyInput] = useState("");
+  const [deptInput, setDeptInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const { data: types } = useQuery<DocType[]>({
     queryKey: ["corr-types-active"],
@@ -139,6 +140,7 @@ export default function CorrespondenceForm({
     setV(initial ? toValue(initial) : empty);
     setErrors([]);
     setPartyInput("");
+    setDeptInput("");
   }, [initial]);
 
   const set = (k: keyof CorrFormValue, val: string) =>
@@ -178,6 +180,38 @@ export default function CorrespondenceForm({
       const cur = splitParty(p[partyKey]);
       cur.splice(idx, 1);
       return { ...p, [partyKey]: joinParty(cur) };
+    });
+  };
+
+  const deptList = splitParty(v.department);
+
+  const addDept = (raw?: string) => {
+    const src = raw !== undefined ? raw : deptInput;
+    const parts = src
+      .split(/[;\n]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    if (parts.length === 0) return;
+    setV((p) => {
+      const cur = splitParty(p.department);
+      const seen = new Set(cur.map((s) => s.toLowerCase()));
+      const next = [...cur];
+      for (const t of parts) {
+        if (!seen.has(t.toLowerCase())) {
+          next.push(t);
+          seen.add(t.toLowerCase());
+        }
+      }
+      return { ...p, department: joinParty(next) };
+    });
+    setDeptInput("");
+  };
+
+  const removeDept = (idx: number) => {
+    setV((p) => {
+      const cur = splitParty(p.department);
+      cur.splice(idx, 1);
+      return { ...p, department: joinParty(cur) };
     });
   };
 
@@ -240,8 +274,24 @@ export default function CorrespondenceForm({
 
   const submit = (and: "close" | "add" | "open" = "close") => {
     let normalized = { ...v };
+    // Gộp tag phòng ban đang gõ dở (nếu quên Enter).
+    const pendingDepts = deptInput
+      .split(/[;\n]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    const mergeDepts = (base: string) => {
+      const cur = splitParty(base);
+      const seen = new Set(cur.map((s) => s.toLowerCase()));
+      for (const t of pendingDepts) {
+        if (!seen.has(t.toLowerCase())) {
+          cur.push(t);
+          seen.add(t.toLowerCase());
+        }
+      }
+      return joinParty(cur);
+    };
     if (allowMultiple) {
-      // Gộp input đang gõ dở (nếu user quên Enter) rồi chuẩn hoá "; ".
+      // Gộp input nơi nhận đang gõ dở (nếu user quên Enter) rồi chuẩn hoá "; ".
       const pendingParts = partyInput
         .split(/[;\n]+/)
         .map((t) => t.trim())
@@ -274,6 +324,17 @@ export default function CorrespondenceForm({
         sender: v.sender.trim(),
       };
     }
+    // Chuẩn hoá phòng ban chia sẻ (luôn multi).
+    if (pendingDepts.length > 0) {
+      normalized = { ...normalized, department: mergeDepts(normalized.department) };
+      setV(normalized);
+      setDeptInput("");
+    } else {
+      normalized = {
+        ...normalized,
+        department: joinParty(splitParty(normalized.department)),
+      };
+    }
     const errs: string[] = [];
     if (!normalized.document_number.trim())
       errs.push("Số văn bản không được để trống.");
@@ -303,6 +364,8 @@ export default function CorrespondenceForm({
       errs.push("Ngày hiệu lực phải trước hoặc bằng ngày hết hiệu lực.");
     if (normalized.visibility === "DEPARTMENT" && !normalized.department.trim())
       errs.push("Chia sẻ theo phòng ban thì phải nhập phòng ban.");
+    if (normalized.visibility === "DEPARTMENT" && normalized.department.length > 255)
+      errs.push("Danh sách phòng ban quá dài (tối đa 255 ký tự). Hãy rút gọn.");
     if (
       normalized.recipient.length > 500 ||
       normalized.sender.length > 500
@@ -549,11 +612,70 @@ export default function CorrespondenceForm({
           </Field>
           {v.visibility === "DEPARTMENT" && (
             <Field label="Phòng ban *">
-              <TextInput
-                value={v.department}
-                onChange={(e) => set("department", e.target.value)}
-                placeholder="Kế toán"
-              />
+              <div className="rounded-md border border-gray-300 px-2 py-1.5 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
+                {deptList.length > 0 && (
+                  <div className="mb-1.5 flex flex-wrap gap-1.5">
+                    {deptList.map((d, i) => (
+                      <span
+                        key={`${d}-${i}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-medium text-brand-800 ring-1 ring-inset ring-brand-200"
+                      >
+                        <span className="max-w-[220px] truncate" title={d}>
+                          {d}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={`Xóa phòng ban ${d}`}
+                          className="rounded-full p-0.5 hover:bg-brand-100"
+                          onClick={() => removeDept(i)}
+                        >
+                          <X size={12} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    value={deptInput}
+                    onChange={(e) => setDeptInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === ";") {
+                        e.preventDefault();
+                        addDept();
+                      } else if (
+                        e.key === "Backspace" &&
+                        !deptInput &&
+                        deptList.length > 0
+                      ) {
+                        removeDept(deptList.length - 1);
+                      }
+                    }}
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData("text");
+                      if (/[;\n]/.test(text)) {
+                        e.preventDefault();
+                        addDept(text);
+                      }
+                    }}
+                    placeholder="Nhập từng phòng ban rồi Enter — VD: Kế toán"
+                    className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addDept()}
+                    disabled={!deptInput.trim()}
+                    className="shrink-0 rounded-md px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50 disabled:opacity-40"
+                  >
+                    Thêm
+                  </button>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Chia sẻ cho nhiều phòng ban thì nhập từng phòng ban rồi Enter.
+                Lưu dạng “Kế toán; Nhân sự”
+                {deptList.length > 0 && ` — đã nhập ${deptList.length} phòng ban.`}
+              </p>
             </Field>
           )}
         </div>

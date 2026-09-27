@@ -31,6 +31,45 @@ def normalize_visibility(value: str | None) -> str:
     return v if v in VISIBILITIES else "ORGANIZATION"
 
 
+def split_departments(stored: str | None) -> list[str]:
+    """Tách "Kế toán; Nhân sự" -> ["Kế toán", "Nhân sự"]."""
+    if not stored:
+        return []
+    return [t.strip() for t in str(stored).replace("\n", ";").split(";") if t.strip()]
+
+
+def dept_contains(stored: str | None, user_dept: str | None) -> bool:
+    """True nếu phòng của user nằm trong danh sách chia sẻ (so sánh không phân biệt hoa/thường)."""
+    if not user_dept:
+        return False
+    target = user_dept.strip().lower()
+    return any(d.lower() == target for d in split_departments(stored))
+
+
+def _escape_like(s: str) -> str:
+    return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def dept_match_filter(department_col, user_dept: str):
+    """SQL filter khớp 1 phòng ban trong chuỗi multi "A; B; C".
+
+    Lưu chuẩn "A; B" nên cần match: exact, start "D;%", end "%; D", middle "%; D;%".
+    Thêm biến thể không cách (";") để tương thích dữ liệu cũ.
+    """
+    d = (user_dept or "").strip()
+    e = _escape_like(d)
+    return or_(
+        department_col == d,
+        department_col.ilike(f"{e};%", escape="\\"),
+        department_col.ilike(f"{e}; %", escape="\\"),
+        department_col.ilike(f"%;{e}", escape="\\"),
+        department_col.ilike(f"%; {e}", escape="\\"),
+        department_col.ilike(f"%;{e};%", escape="\\"),
+        department_col.ilike(f"%; {e};%", escape="\\"),
+        department_col.ilike(f"%; {e}; %", escape="\\"),
+    )
+
+
 def _scope_filter(visibility_col, department_col, owner_col, user: User):
     """SQLAlchemy filter for list queries. Returns None for ADMIN (no filter)."""
     if is_admin(user):
@@ -42,7 +81,7 @@ def _scope_filter(visibility_col, department_col, owner_col, user: User):
     ]
     if getattr(user, "department", None):
         conds.append(
-            and_(visibility_col == "DEPARTMENT", department_col == user.department)
+            and_(visibility_col == "DEPARTMENT", dept_match_filter(department_col, user.department))
         )
     return or_(*conds)
 
@@ -68,7 +107,7 @@ def _can_view(visibility: str | None, department: str | None, owner_id: str | No
     if v == "ORGANIZATION":
         return True
     if v == "DEPARTMENT":
-        return bool(getattr(user, "department", None)) and user.department == department
+        return dept_contains(department, getattr(user, "department", None))
     return False  # PRIVATE
 
 

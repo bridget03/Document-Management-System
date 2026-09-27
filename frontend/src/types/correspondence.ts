@@ -237,6 +237,15 @@ export function splitPartyList(s?: string | null): string[] {
     .filter(Boolean);
 }
 
+/** Tách chuỗi phòng ban chia sẻ "Kế toán; Nhân sự" thành list. Dùng chung quy ước "; ". */
+export function splitDeptList(s?: string | null): string[] {
+  return splitPartyList(s);
+}
+
+export function joinDeptList(list: string[]): string {
+  return list.join('; ');
+}
+
 export function fmtDateVN(iso?: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso.length <= 10 ? iso + 'T00:00:00' : iso);

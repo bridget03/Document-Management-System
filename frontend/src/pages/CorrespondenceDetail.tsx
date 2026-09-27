@@ -25,6 +25,7 @@ import {
   LEVEL_LABELS,
   fmtDateVN,
   splitPartyList,
+  splitDeptList,
   DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
@@ -224,11 +225,23 @@ export default function CorrespondenceDetail({
               <Badge tone={st.tone}>{st.label}</Badge>
             </InfoRow>
             <InfoRow label="Chia sẻ">
-              {data.visibility === "PRIVATE"
-                ? "Riêng tư"
-                : data.visibility === "DEPARTMENT"
-                  ? `Phòng ban${data.department ? ` (${data.department})` : ""}`
-                  : "Toàn công ty"}
+              {data.visibility === "PRIVATE" ? (
+                "Riêng tư"
+              ) : data.visibility === "DEPARTMENT" ? (
+                <span className="flex flex-wrap items-center gap-1.5">
+                  <span>Phòng ban</span>
+                  {splitDeptList(data.department).map((d, i) => (
+                    <span
+                      key={`${d}-${i}`}
+                      className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800"
+                    >
+                      {d}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                "Toàn công ty"
+              )}
             </InfoRow>
             <InfoRow label="Ghi chú">{data.notes || "—"}</InfoRow>
           </div>
