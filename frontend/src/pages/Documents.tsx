@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   useQuery,
@@ -30,6 +30,7 @@ import Button from "../components/ui/Button";
 import { IconButton, LinkButton, MenuItem } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
+import ActionMenu from "../components/ui/ActionMenu";
 import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import FileTypeIcon from "../components/documents/FileTypeIcon";
@@ -83,7 +84,12 @@ export default function Documents() {
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
   const [menuId, setMenuId] = useState<string | null>(null);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const closeMenu = useCallback(() => {
+    setMenuId(null);
+    setMenuAnchor(null);
+  }, []);
   const qc = useQueryClient();
   const { toast } = useToast();
   const nav = useNavigate();
@@ -178,6 +184,7 @@ export default function Documents() {
     setSyncStatus("");
     setPage(1);
   };
+  const openDoc = data?.items.find((i: Document) => i.id === menuId) ?? null;
 
   const setFilter = (fn: (v: string) => void) => (v: string) => {
     fn(v);
@@ -421,66 +428,58 @@ export default function Documents() {
                       <StatusBadge status={d.sync_status} source={d.source} />
                     </td>
                     <td className="px-4 py-2.5 text-right">
-                      <div className="relative inline-block">
-                        <IconButton
-                          label={`Actions for ${d.name}`}
-                          aria-expanded={menuId === d.id}
-                          onClick={() =>
-                            setMenuId(menuId === d.id ? null : d.id)
+                      <IconButton
+                        label={`Actions for ${d.name}`}
+                        aria-expanded={menuId === d.id}
+                        aria-haspopup="menu"
+                        onClick={(e) => {
+                          if (menuId === d.id) {
+                            closeMenu();
+                          } else {
+                            setMenuAnchor(e.currentTarget);
+                            setMenuId(d.id);
                           }
-                        >
-                          <MoreHorizontal size={17} />
-                        </IconButton>
-                        {menuId === d.id && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-10"
-                              onClick={() => setMenuId(null)}
-                            />
-                            <div className="absolute right-0 z-20 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-card">
-                              <Link
-                                to={`/documents/${d.id}/preview`}
-                                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                                onClick={() => setMenuId(null)}
-                              >
-                                <Eye size={14} /> Preview
-                              </Link>
-                              <MenuItem
-                                onClick={() => {
-                                  setMenuId(null);
-                                  downloadViaBlob(
-                                    d.id,
-                                    d.original_name || d.name,
-                                  )
-                                    .then(() =>
-                                      toast("success", "Download started."),
-                                    )
-                                    .catch(() =>
-                                      toast("error", "Download failed."),
-                                    );
-                                }}
-                              >
-                                <Download size={14} /> Download
-                              </MenuItem>
-                              <MenuItem
-                                tone="danger"
-                                onClick={() => {
-                                  setMenuId(null);
-                                  setDeleteId(d.id);
-                                }}
-                              >
-                                <Trash2 size={14} /> Delete
-                              </MenuItem>
-                            </div>
-                          </>
-                        )}
-                      </div>
+                        }}
+                      >
+                        <MoreHorizontal size={17} />
+                      </IconButton>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {openDoc && (
+            <ActionMenu anchor={menuAnchor} onClose={closeMenu}>
+              <Link
+                to={`/documents/${openDoc.id}/preview`}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                onClick={closeMenu}
+              >
+                <Eye size={14} /> Preview
+              </Link>
+              <MenuItem
+                onClick={() => {
+                  const doc = openDoc;
+                  closeMenu();
+                  downloadViaBlob(doc.id, doc.original_name || doc.name)
+                    .then(() => toast("success", "Download started."))
+                    .catch(() => toast("error", "Download failed."));
+                }}
+              >
+                <Download size={14} /> Download
+              </MenuItem>
+              <MenuItem
+                tone="danger"
+                onClick={() => {
+                  setDeleteId(openDoc.id);
+                  closeMenu();
+                }}
+              >
+                <Trash2 size={14} /> Delete
+              </MenuItem>
+            </ActionMenu>
+          )}
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2.5 text-sm">
             <span className="text-gray-500">
               Page {data?.page} of {data?.total_pages} · {data?.total} documents

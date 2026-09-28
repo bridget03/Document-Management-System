@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import Badge from "../ui/Badge";
+import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
 import {
   STATUS_CONFIG,
@@ -25,9 +26,15 @@ export default function CorrespondenceTable({
   base,
   onDelete,
 }: Props) {
-  const [menuId, setMenuId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const cfg = DIRECTION_CONFIG[dir];
   const partyList = (d: CorrDoc) => splitPartyList(d[cfg.partyKey]);
+  const closeMenu = useCallback(() => {
+    setOpenId(null);
+    setAnchor(null);
+  }, []);
+  const openDoc = items.find((i) => i.id === openId) ?? null;
 
   return (
     <div className="overflow-x-auto">
@@ -99,54 +106,55 @@ export default function CorrespondenceTable({
                   <Badge tone={st.tone}>{st.label}</Badge>
                 </td>
                 <td className="px-4 py-2.5 text-right">
-                  <div className="relative inline-block">
-                    <IconButton
-                      label={`Actions for ${d.document_number}`}
-                      aria-expanded={menuId === d.id}
-                      onClick={() => setMenuId(menuId === d.id ? null : d.id)}
-                    >
-                      <MoreHorizontal size={17} />
-                    </IconButton>
-                    {menuId === d.id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-10"
-                          onClick={() => setMenuId(null)}
-                        />
-                        <div className="absolute right-0 z-20 w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-card">
-                          <Link
-                            to={`${base}/${d.id}`}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => setMenuId(null)}
-                          >
-                            <Eye size={14} /> Chi tiết
-                          </Link>
-                          <Link
-                            to={`${base}/${d.id}/edit`}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => setMenuId(null)}
-                          >
-                            <Pencil size={14} /> Chỉnh sửa
-                          </Link>
-                          <MenuItem
-                            tone="danger"
-                            onClick={() => {
-                              setMenuId(null);
-                              onDelete(d);
-                            }}
-                          >
-                            <Trash2 size={14} /> Xóa
-                          </MenuItem>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <IconButton
+                    label={`Actions for ${d.document_number}`}
+                    aria-expanded={openId === d.id}
+                    aria-haspopup="menu"
+                    onClick={(e) => {
+                      if (openId === d.id) {
+                        closeMenu();
+                      } else {
+                        setAnchor(e.currentTarget);
+                        setOpenId(d.id);
+                      }
+                    }}
+                  >
+                    <MoreHorizontal size={17} />
+                  </IconButton>
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      {openDoc && (
+        <ActionMenu anchor={anchor} onClose={closeMenu}>
+          <Link
+            to={`${base}/${openDoc.id}`}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={closeMenu}
+          >
+            <Eye size={14} /> Chi tiết
+          </Link>
+          <Link
+            to={`${base}/${openDoc.id}/edit`}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+            onClick={closeMenu}
+          >
+            <Pencil size={14} /> Chỉnh sửa
+          </Link>
+          <MenuItem
+            tone="danger"
+            onClick={() => {
+              const doc = openDoc;
+              closeMenu();
+              onDelete(doc);
+            }}
+          >
+            <Trash2 size={14} /> Xóa
+          </MenuItem>
+        </ActionMenu>
+      )}
     </div>
   );
 }
