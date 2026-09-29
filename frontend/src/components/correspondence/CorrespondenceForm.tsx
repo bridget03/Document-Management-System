@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, X, Link2, FileUp, Wand2 } from "lucide-react";
 import Button from "../ui/Button";
@@ -7,11 +8,14 @@ import { TextInput, TextArea, Select, Field } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { uploadDocument } from "../../services/documentApi";
 import { listDocTypes, nextNumber } from "../../services/correspondenceApi";
+import { listDepartments } from "../../services/departmentApi";
+import type { Department } from "../../types/department";
 import {
   LEVEL_OPTIONS,
   STATUS_OPTIONS,
   DIRECTION_CONFIG,
   VISIBILITY_OPTIONS,
+  ISSUING_DEPARTMENT_OPTIONS,
   type CorrDoc,
   type Direction,
   type DocType,
@@ -135,6 +139,10 @@ export default function CorrespondenceForm({
     queryKey: ["corr-types-active"],
     queryFn: () => listDocTypes(true),
   });
+  const { data: deptOptions } = useQuery<Department[]>({
+    queryKey: ["departments-active"],
+    queryFn: () => listDepartments(true),
+  });
 
   useEffect(() => {
     setV(initial ? toValue(initial) : empty);
@@ -214,6 +222,12 @@ export default function CorrespondenceForm({
       return { ...p, department: joinParty(cur) };
     });
   };
+
+  // Phòng ban đã khai báo (Cấu hình → Phòng ban) chưa được chọn.
+  const deptAdded = new Set(deptList.map((s) => s.toLowerCase()));
+  const deptSuggestions = (deptOptions || [])
+    .map((d) => d.name)
+    .filter((n) => !deptAdded.has(n.toLowerCase()));
 
   const onTypeChange = (id: string) => {
     setV((p) => {
@@ -535,8 +549,21 @@ export default function CorrespondenceForm({
             <TextInput
               value={v.issuing_department}
               onChange={(e) => set("issuing_department", e.target.value)}
-              placeholder="Hành chính"
+              placeholder={
+                direction === "OUTGOING"
+                  ? "Chọn hoặc nhập bộ phận phát hành"
+                  : "Hành chính"
+              }
+              list={direction === "OUTGOING" ? "issuing-department-options" : undefined}
+              autoComplete="off"
             />
+            {direction === "OUTGOING" && (
+              <datalist id="issuing-department-options">
+                {ISSUING_DEPARTMENT_OPTIONS.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            )}
           </Field>
         </div>
       </section>
@@ -659,6 +686,8 @@ export default function CorrespondenceForm({
                       }
                     }}
                     placeholder="Nhập từng phòng ban rồi Enter — VD: Kế toán"
+                    list="dept-suggestions"
+                    autoComplete="off"
                     className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
                   />
                   <button
@@ -670,10 +699,37 @@ export default function CorrespondenceForm({
                     Thêm
                   </button>
                 </div>
+                <datalist id="dept-suggestions">
+                  {deptSuggestions.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+                {deptSuggestions.length > 0 && (
+                  <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-gray-400">Chọn nhanh:</span>
+                    {deptSuggestions.map((name) => (
+                      <button
+                        key={name}
+                        type="button"
+                        onClick={() => addDept(name)}
+                        title={`Thêm ${name}`}
+                        className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700 hover:bg-brand-50 hover:text-brand-700"
+                      >
+                        + {name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Chia sẻ cho nhiều phòng ban thì nhập từng phòng ban rồi Enter.
-                Lưu dạng “Kế toán; Nhân sự”
+                Chia sẻ cho nhiều phòng ban thì bấm chọn nhanh hoặc nhập từng
+                phòng ban rồi Enter. Khai báo danh sách tại{" "}
+                <Link
+                  to="/departments"
+                  className="font-medium text-brand-700 hover:underline"
+                >
+                  Cấu hình → Phòng ban
+                </Link>
                 {deptList.length > 0 && ` — đã nhập ${deptList.length} phòng ban.`}
               </p>
             </Field>

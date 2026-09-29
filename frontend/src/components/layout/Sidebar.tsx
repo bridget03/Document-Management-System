@@ -12,6 +12,7 @@ import {
   Inbox,
   Send,
   Building2,
+  Building,
   BookMarked,
   Settings,
   Users,
@@ -81,6 +82,11 @@ const groups: {
         to: "/correspondence/types",
         label: "Loại công văn",
         icon: <BookMarked size={17} />,
+      },
+      {
+        to: "/departments",
+        label: "Phòng ban",
+        icon: <Building size={17} />,
       },
       {
         to: "/correspondence/settings",

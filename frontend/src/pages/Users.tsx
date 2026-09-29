@@ -17,6 +17,8 @@ import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { TextInput, Select, Field } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
+import { listDepartments } from "../services/departmentApi";
+import type { Department } from "../types/department";
 
 function errMsg(e: unknown, fallback: string) {
   const d = (e as { response?: { data?: { detail?: unknown } } })?.response
@@ -32,6 +34,10 @@ export default function Users() {
   const { data, isLoading, isError, refetch } = useQuery<User[]>({
     queryKey: ["users"],
     queryFn: listUsers,
+  });
+  const { data: deptOptions } = useQuery<Department[]>({
+    queryKey: ["departments-active"],
+    queryFn: () => listDepartments(true),
   });
 
   const [createOpen, setCreateOpen] = useState(false);
@@ -125,6 +131,11 @@ export default function Users() {
           <Plus size={15} /> Thêm người dùng
         </Button>
       </div>
+      <datalist id="user-dept-options">
+        {(deptOptions || []).map((d) => (
+          <option key={d.id} value={d.name} />
+        ))}
+      </datalist>
 
       {isError ? (
         <Card className="px-6 py-10 text-center">
@@ -261,6 +272,8 @@ export default function Users() {
               value={cDept}
               onChange={(e) => setCDept(e.target.value)}
               placeholder="Kế toán"
+              list="user-dept-options"
+              autoComplete="off"
             />
           </Field>
         </div>
@@ -317,6 +330,8 @@ export default function Users() {
               value={eDept}
               onChange={(e) => setEDept(e.target.value)}
               placeholder="Kế toán"
+              list="user-dept-options"
+              autoComplete="off"
             />
           </Field>
           {current?.id === edit?.id && (

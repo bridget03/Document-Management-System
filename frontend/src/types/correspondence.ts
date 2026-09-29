@@ -122,6 +122,30 @@ export const VISIBILITY_OPTIONS = [
 
 export const STATUS_OPTIONS = Object.entries(STATUS_CONFIG).map(([value, c]) => ({ value, label: c.label }));
 
+/**
+ * 17 công ty trong tập đoàn — danh sách chọn sẵn cho ô "Bộ phận phát hành"
+ * của công văn đi (vẫn cho phép nhập tự do nếu phát sinh đơn vị mới).
+ */
+export const ISSUING_DEPARTMENT_OPTIONS: string[] = [
+  'Tổng Công ty đầu tư phát triển Đô Thị - CTCP',
+  'Công ty cổ phần đầu tư phát triển Vicenza',
+  'Công ty TNHH khai thác và chế biến khoán sản liên doanh Việt Nhật',
+  'Công ty cổ phần tập đoàn Westminster Việt Nam',
+  'Công ty cổ phần tập đoàn tư vấn xây dựng Kensington Việt Nam',
+  'Công ty cổ phần tập đoàn Sentosa Việt Nam',
+  'Công ty cổ phần tập đoàn Phúc Thành Invest',
+  'Công ty cổ phần tập đoàn Phúc Thịnh Invest',
+  'Công ty cổ phần tập đoàn Greenwich Việt Nam',
+  'Công ty cổ phần tập đoàn McCarthy việt nam',
+  'Công ty cổ phần tập đoàn CasaAmaini việt nam',
+  'Công ty cổ phần tập đoàn đầu tư Đại Phúc Hưng Việt Nam',
+  'Công ty cổ phần tập đoàn xây dựng Notting Hill Gate Việt Nam',
+  'Công ty cổ phần tập đoàn lancaster Việt Nam',
+  'Nhà máy gạch men cao cấp Vicenza',
+  'Công ty cổ phần tập đoàn AMANI KINGDOM CAPITAL',
+  'Công ty cổ phần tập đoàn công nghiệp Kingspalace',
+];
+
 /** Excel Vietnamese header -> field key (import + template). */
 export const EXCEL_HEADERS: { header: string; key: string }[] = [
   { header: 'Số văn bản', key: 'document_number' },
