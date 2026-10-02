@@ -98,6 +98,8 @@ class CorrCreate(BaseModel):
     notes: str | None = None
     visibility: str = "ORGANIZATION"
     department: str | None = None
+    # Personal organization only; never changes a document's shared permissions.
+    folder_id: str | None = None
     attachment_ids: list[str] = []
     links: list[LinkIn] = []
 
@@ -200,6 +202,24 @@ class PaginatedCorr(BaseModel):
     page_size: int
     total: int
     total_pages: int
+
+
+class FolderIn(BaseModel):
+    name: str
+    direction: Direction
+    parent_id: str | None = None
+
+    @field_validator("name")
+    @classmethod
+    def _folder_name(cls, value: str) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Tên thư mục không được để trống.")
+        return value[:255]
+
+
+class FolderDocumentsIn(BaseModel):
+    document_ids: list[str]
 
 
 class ImportRowError(BaseModel):

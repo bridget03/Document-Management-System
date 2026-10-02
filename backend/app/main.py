@@ -11,7 +11,7 @@ from app.database.database import SessionLocal, engine, Base
 from app.models import User  # noqa: F401  (register models)
 from app.models import Category, Tag, Document, GoogleDriveConfig, SyncLog, AuditLog, GoogleDriveSyncFile  # noqa
 from app.models import DocumentType, CorrespondenceNumberConfig, CorrespondenceDocument  # noqa
-from app.models import CorrespondenceAttachment, CorrespondenceLink  # noqa
+from app.models import CorrespondenceAttachment, CorrespondenceLink, CorrespondenceFolder, CorrespondenceFolderItem  # noqa
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.departments import router as departments_router

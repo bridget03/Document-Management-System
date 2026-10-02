@@ -18,6 +18,18 @@ export const corrUpdate = (direction: ApiDir, id: string, payload: unknown) =>
 export const corrDelete = (direction: ApiDir, id: string) =>
   api.delete(`${base}/${direction}/${id}`).then((r) => r.data);
 
+export const corrFolders = (direction: string) =>
+  api.get(`${base}/folders`, { params: { direction } }).then((r) => r.data);
+
+export const corrCreateFolder = (name: string, direction: string, parentId: string | null) =>
+  api.post(`${base}/folders`, { name, direction, parent_id: parentId }).then((r) => r.data);
+
+export const corrDeleteFolder = (id: string) =>
+  api.delete(`${base}/folders/${id}`).then((r) => r.data);
+
+export const corrMoveToFolder = (folderId: string, documentIds: string[]) =>
+  api.post(`${base}/folders/${folderId}/documents`, { document_ids: documentIds }).then((r) => r.data);
+
 export const corrRemoveAttachment = (direction: string, id: string, attId: string) =>
   api.delete(`${base}/${direction}/${id}/attachments/${attId}`).then((r) => r.data);
 

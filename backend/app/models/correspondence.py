@@ -67,6 +67,31 @@ class CorrespondenceDocument(Base):
     __table_args__ = (UniqueConstraint("direction", "document_number", name="uq_corr_direction_number"),)
 
 
+class CorrespondenceFolder(Base):
+    """A private, user-managed logical folder for correspondence records."""
+    __tablename__ = "correspondence_folders"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    name = Column(String(255), nullable=False)
+    direction = Column(String(20), nullable=False, index=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    parent_id = Column(String(36), ForeignKey("correspondence_folders.id", ondelete="CASCADE"), nullable=True, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CorrespondenceFolderItem(Base):
+    __tablename__ = "correspondence_folder_items"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    folder_id = Column(String(36), ForeignKey("correspondence_folders.id", ondelete="CASCADE"), nullable=False, index=True)
+    correspondence_id = Column(String(36), ForeignKey("correspondence_documents.id", ondelete="CASCADE"), nullable=False, index=True)
+    owner_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (UniqueConstraint("owner_id", "correspondence_id", name="uq_corr_folder_item_owner_document"),)
+
+
 class CorrespondenceAttachment(Base):
     __tablename__ = "correspondence_attachments"
 

@@ -119,6 +119,40 @@ def test_list_sorts_visible_columns():
     assert [item["document_number"] for item in r.json()["items"]] == ["CV001", "CV002"]
 
 
+def test_personal_folders_move_and_filter_documents():
+    c, h = get_client(), login(get_client())
+    t = make_type(c, h)
+    first = c.post("/api/correspondence/outgoing", headers=h, json={
+        **base_out(t["id"]), "document_number": "FOLDER-001",
+    }).json()
+    second = c.post("/api/correspondence/outgoing", headers=h, json={
+        **base_out(t["id"]), "document_number": "FOLDER-002",
+    }).json()
+    folder = c.post("/api/correspondence/folders", headers=h, json={
+        "name": "Hồ sơ dự án", "direction": "OUTGOING",
+    })
+    assert folder.status_code == 200, folder.text
+    folder_id = folder.json()["id"]
+    child = c.post("/api/correspondence/folders", headers=h, json={
+        "name": "Hồ sơ ký", "direction": "OUTGOING", "parent_id": folder_id,
+    })
+    assert child.status_code == 200 and child.json()["parent_id"] == folder_id
+    moved = c.post(f"/api/correspondence/folders/{folder_id}/documents", headers=h, json={
+        "document_ids": [first["id"]],
+    })
+    assert moved.status_code == 200, moved.text
+    folders = c.get("/api/correspondence/folders", headers=h, params={"direction": "OUTGOING"})
+    assert folders.status_code == 200
+    assert next(item for item in folders.json() if item["id"] == folder_id)["item_count"] == 1
+    listed = c.get("/api/correspondence/outgoing", headers=h, params={"folder_id": folder_id})
+    assert listed.status_code == 200 and [item["id"] for item in listed.json()["items"]] == [first["id"]]
+    # Moving to another folder replaces the current user's old placement.
+    other = c.post("/api/correspondence/folders", headers=h, json={"name": "Lưu trữ", "direction": "OUTGOING"}).json()
+    c.post(f"/api/correspondence/folders/{other['id']}/documents", headers=h, json={"document_ids": [first["id"]]})
+    assert c.get("/api/correspondence/outgoing", headers=h, params={"folder_id": folder_id}).json()["total"] == 0
+    assert second["id"] != first["id"]
+
+
 def test_types_delete_guard_and_settings():
     c, h = get_client(), login(get_client())
     t = make_type(c, h)

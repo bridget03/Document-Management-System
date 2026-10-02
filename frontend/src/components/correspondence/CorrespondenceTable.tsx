@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, FolderInput, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import Badge from "../ui/Badge";
 import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
@@ -21,6 +21,7 @@ interface Props {
   sortBy: CorrSortKey;
   sortOrder: SortOrder;
   onSort: (key: CorrSortKey) => void;
+  onMoveToFolder: (doc: CorrDoc) => void;
 }
 
 export type CorrSortKey =
@@ -41,6 +42,7 @@ export default function CorrespondenceTable({
   sortBy,
   sortOrder,
   onSort,
+  onMoveToFolder,
 }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -172,6 +174,15 @@ export default function CorrespondenceTable({
           >
             <Pencil size={14} /> Chỉnh sửa
           </Link>
+          <MenuItem
+            onClick={() => {
+              const doc = openDoc;
+              closeMenu();
+              onMoveToFolder(doc);
+            }}
+          >
+            <FolderInput size={14} /> Chuyển vào thư mục
+          </MenuItem>
           <MenuItem
             tone="danger"
             onClick={() => {

@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
-import { corrCreate, corrGet, corrUpdate } from '../services/correspondenceApi';
+import { corrCreate, corrFolders, corrGet, corrUpdate } from '../services/correspondenceApi';
 import { Card, Skeleton } from '../components/ui/Skeleton';
 import CorrespondenceForm, { type CorrFormValue } from '../components/correspondence/CorrespondenceForm';
 import IncomingForm from '../components/correspondence/IncomingForm';
@@ -16,7 +16,7 @@ interface Props {
   base: string;
 }
 
-function toPayload(v: CorrFormValue, direction: Direction) {
+function toPayload(v: CorrFormValue, direction: Direction, folderId?: string | null) {
   const num = (s: string) => (s.trim() === '' ? undefined : Number(s.trim()));
   const dt = (s: string) => (s.trim() === '' ? undefined : s.trim());
   // Đi/Nội bộ: chuẩn hoá "A;; B ;  C" -> "A; B; C" (nhiều nơi).
@@ -52,6 +52,7 @@ function toPayload(v: CorrFormValue, direction: Direction) {
     notes: v.notes.trim() || undefined,
     visibility: v.visibility || undefined,
     department: multiParty(v.department),
+    folder_id: folderId || undefined,
     attachment_ids: v.attachment_ids.map((a) => a.document_id),
     links,
   };
@@ -62,6 +63,9 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
   const isEdit = !!id;
   const apiDir = DIRECTION_CONFIG[direction].api;
   const nav = useNavigate();
+  const [searchParams] = useSearchParams();
+  const folderId = !isEdit ? searchParams.get('folder') : null;
+  const listUrl = folderId ? `${base}?folder=${encodeURIComponent(folderId)}` : base;
   const qc = useQueryClient();
   const [serverError, setServerError] = useState('');
 
@@ -71,18 +75,27 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
     enabled: isEdit,
   });
 
+  const { data: folders = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['corr-folders', direction],
+    queryFn: () => corrFolders(direction),
+    enabled: !isEdit && !!folderId,
+  });
+  const folderName = folders.find((f) => f.id === folderId)?.name ?? null;
+
   const save = useMutation({
     mutationFn: (payload: { value: CorrFormValue; and: 'close' | 'add' | 'open' }) =>
       isEdit
-        ? corrUpdate(apiDir, id!, toPayload(payload.value, direction))
-        : corrCreate(apiDir, toPayload(payload.value, direction)),
+        ? corrUpdate(apiDir, id!, toPayload(payload.value, direction, null))
+        : corrCreate(apiDir, toPayload(payload.value, direction, folderId)),
     onSuccess: (doc, { and }) => {
       qc.invalidateQueries({ queryKey: ['corr', direction] });
+      qc.invalidateQueries({ queryKey: ['corr-folders', direction] });
       qc.invalidateQueries({ queryKey: ['corr-doc', id] });
-      if (and === 'close') nav(base);
+      if (and === 'close') nav(listUrl);
       else if (and === 'open') nav(`${base}/${(doc as CorrDoc).id}`);
       else {
-        // Reset to a fresh form for the next entry.
+        // Reset to a fresh form for the next entry, vẫn giữ ?folder= trên URL
+        // nên công văn tiếp theo tự vào cùng thư mục.
         setFormKey((k) => k + 1);
         setServerError('');
       }
@@ -98,11 +111,23 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4">
-      <Link to={isEdit ? `${base}/${id}` : base} className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-900">
+      <Link to={isEdit ? `${base}/${id}` : listUrl} className="inline-flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-gray-900">
         <ArrowLeft size={14} /> {isEdit ? 'Về chi tiết' : 'Về danh sách'}
       </Link>
       <div>
         <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Chỉnh sửa văn bản' : title}</h1>
+        {!isEdit && folderId && (
+          <p className="mt-1 text-sm text-gray-500">
+            Sẽ tự lưu vào thư mục:{' '}
+            <Link to={listUrl} className="font-medium text-brand-700 hover:underline">
+              {folderName ?? 'đang tải...'}
+            </Link>
+            <span className="text-gray-400"> · </span>
+            <Link to={base} className="text-gray-500 hover:underline">
+              Tạo ngoài thư mục
+            </Link>
+          </p>
+        )}
       </div>
       {isEdit && isLoading ? (
         <Card className="space-y-3 p-5">
@@ -115,7 +140,7 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
           pending={save.isPending}
           serverError={serverError}
           createMode={!isEdit}
-          onCancel={() => nav(isEdit ? `${base}/${id}` : base)}
+          onCancel={() => nav(isEdit ? `${base}/${id}` : listUrl)}
           onSubmit={(value, and) => {
             setServerError('');
             save.mutate({ value, and });
@@ -128,7 +153,7 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
           pending={save.isPending}
           serverError={serverError}
           createMode={!isEdit}
-          onCancel={() => nav(isEdit ? `${base}/${id}` : base)}
+          onCancel={() => nav(isEdit ? `${base}/${id}` : listUrl)}
           onSubmit={(value, and) => {
             setServerError('');
             save.mutate({ value, and });
@@ -142,7 +167,7 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
           pending={save.isPending}
           serverError={serverError}
           createMode={!isEdit}
-          onCancel={() => nav(isEdit ? `${base}/${id}` : base)}
+          onCancel={() => nav(isEdit ? `${base}/${id}` : listUrl)}
           onSubmit={(value, and) => {
             setServerError('');
             save.mutate({ value, and });

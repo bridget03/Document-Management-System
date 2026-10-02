@@ -13,7 +13,9 @@ from app.models.correspondence import (
     CorrespondenceDocument,
     CorrespondenceAttachment,
     CorrespondenceLink,
+    CorrespondenceFolder,
+    CorrespondenceFolderItem,
 )
 
 __all__ = ["User", "Category", "Tag", "document_tags", "Document", "Department", "GoogleDriveConfig", "SyncLog", "AuditLog", "GoogleDriveSyncFile",
-           "DocumentType", "CorrespondenceNumberConfig", "CorrespondenceDocument", "CorrespondenceAttachment", "CorrespondenceLink"]
+           "DocumentType", "CorrespondenceNumberConfig", "CorrespondenceDocument", "CorrespondenceAttachment", "CorrespondenceLink", "CorrespondenceFolder", "CorrespondenceFolderItem"]

@@ -1,5 +1,6 @@
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_admin
@@ -8,6 +9,8 @@ from app.database.database import get_db
 from app.models.correspondence import (
     CorrespondenceDocument,
     CorrespondenceLink,
+    CorrespondenceFolder,
+    CorrespondenceFolderItem,
     DocumentType,
 )
 from app.models.user import User
@@ -21,6 +24,8 @@ from app.schemas.correspondence import (
     NumberConfigIn,
     NumberConfigOut,
     PaginatedCorr,
+    FolderIn,
+    FolderDocumentsIn,
 )
 from app.services import correspondence_service as svc
 
@@ -79,12 +84,23 @@ def _require_delete(user: User, doc: CorrespondenceDocument) -> None:
         raise HTTPException(status_code=403, detail="Bạn không có quyền xóa văn bản này.")
 
 
+def _get_personal_folder(db: Session, user: User, direction: str, folder_id: str) -> CorrespondenceFolder:
+    folder = db.query(CorrespondenceFolder).filter(
+        CorrespondenceFolder.id == folder_id,
+        CorrespondenceFolder.owner_id == user.id,
+        CorrespondenceFolder.direction == direction,
+    ).first()
+    if not folder:
+        raise HTTPException(status_code=400, detail="Thư mục không hợp lệ.")
+    return folder
+
+
 # ---------- List / search ----------
 
 def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=None,
           department=None, security=None, urgency=None, status=None,
           date_from: date | None = None, date_to: date | None = None,
-          sort_by="issue_date", sort_order="desc", scope="all", page=1, page_size=20):
+          sort_by="issue_date", sort_order="desc", scope="all", folder_id=None, page=1, page_size=20):
     if sort_by not in SORTS:
         sort_by = "issue_date"
     if sort_order not in {"asc", "desc"}:
@@ -97,6 +113,21 @@ def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=
         query = query.filter(CorrespondenceDocument.created_by == user.id)
     elif scope == "department" and getattr(user, "department", None):
         query = query.filter(dept_match_filter(CorrespondenceDocument.department, user.department))
+    if folder_id:
+        folder = db.query(CorrespondenceFolder).filter(
+            CorrespondenceFolder.id == folder_id,
+            CorrespondenceFolder.owner_id == user.id,
+            CorrespondenceFolder.direction == direction,
+        ).first()
+        if not folder:
+            raise HTTPException(status_code=404, detail="Thư mục không tồn tại.")
+        query = query.join(
+            CorrespondenceFolderItem,
+            CorrespondenceFolderItem.correspondence_id == CorrespondenceDocument.id,
+        ).filter(
+            CorrespondenceFolderItem.folder_id == folder.id,
+            CorrespondenceFolderItem.owner_id == user.id,
+        )
     # Needed only for the document-type label column. This relationship is
     # optional, hence the outer join; search reuses it when present.
     document_type_joined = sort_by == "document_type"
@@ -120,10 +151,11 @@ def list_incoming(q: str | None = None, type_id: str | None = None, signer: str 
                   status: str | None = None, date_from: date | None = None, date_to: date | None = None,
                   sort_by: str = "issue_date", sort_order: str = "desc",
                   scope: str = Query("all", description="all|mine|department"),
+                  folder_id: str | None = None,
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("INCOMING", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, scope, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size)
 
 
 @router.get("/outgoing", response_model=PaginatedCorr)
@@ -132,10 +164,11 @@ def list_outgoing(q: str | None = None, type_id: str | None = None, signer: str 
                   status: str | None = None, date_from: date | None = None, date_to: date | None = None,
                   sort_by: str = "issue_date", sort_order: str = "desc",
                   scope: str = Query("all", description="all|mine|department"),
+                  folder_id: str | None = None,
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("OUTGOING", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, scope, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size)
 
 
 @router.get("/internal", response_model=PaginatedCorr)
@@ -144,20 +177,100 @@ def list_internal(q: str | None = None, type_id: str | None = None, signer: str 
                   status: str | None = None, date_from: date | None = None, date_to: date | None = None,
                   sort_by: str = "issue_date", sort_order: str = "desc",
                   scope: str = Query("all", description="all|mine|department"),
+                  folder_id: str | None = None,
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("INTERNAL", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, scope, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size)
+
+
+# ---------- Personal folders ----------
+
+@router.get("/folders")
+def list_folders(direction: str, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    rows = db.query(
+        CorrespondenceFolder.id,
+        CorrespondenceFolder.name,
+        CorrespondenceFolder.direction,
+        CorrespondenceFolder.parent_id,
+        CorrespondenceFolder.created_at,
+        func.count(CorrespondenceFolderItem.id).label("item_count"),
+    ).outerjoin(
+        CorrespondenceFolderItem,
+        CorrespondenceFolderItem.folder_id == CorrespondenceFolder.id,
+    ).filter(
+        CorrespondenceFolder.owner_id == user.id,
+        CorrespondenceFolder.direction == _direction_or_400(direction),
+    ).group_by(
+        CorrespondenceFolder.id,
+        CorrespondenceFolder.name,
+        CorrespondenceFolder.direction,
+        CorrespondenceFolder.parent_id,
+        CorrespondenceFolder.created_at,
+    ).order_by(CorrespondenceFolder.name.asc()).all()
+    return [{"id": row.id, "name": row.name, "direction": row.direction, "parent_id": row.parent_id,
+             "created_at": row.created_at, "item_count": row.item_count} for row in rows]
+
+
+@router.post("/folders")
+def create_folder(payload: FolderIn, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    if payload.parent_id:
+        parent = db.query(CorrespondenceFolder).filter(
+            CorrespondenceFolder.id == payload.parent_id,
+            CorrespondenceFolder.owner_id == user.id,
+            CorrespondenceFolder.direction == payload.direction,
+        ).first()
+        if not parent:
+            raise HTTPException(status_code=400, detail="Thư mục cha không hợp lệ.")
+    folder = CorrespondenceFolder(name=payload.name, direction=payload.direction, owner_id=user.id, parent_id=payload.parent_id)
+    db.add(folder)
+    db.flush()
+    _audit(db, user, "CORR_FOLDER_CREATE", None, request)
+    db.commit()
+    return {"id": folder.id, "name": folder.name, "direction": folder.direction, "parent_id": folder.parent_id, "item_count": 0}
+
+
+@router.delete("/folders/{folder_id}")
+def delete_folder(folder_id: str, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    folder = db.query(CorrespondenceFolder).filter(CorrespondenceFolder.id == folder_id, CorrespondenceFolder.owner_id == user.id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Thư mục không tồn tại.")
+    db.delete(folder)
+    _audit(db, user, "CORR_FOLDER_DELETE", None, request)
+    db.commit()
+    return {"success": True}
+
+
+@router.post("/folders/{folder_id}/documents")
+def move_documents_to_folder(folder_id: str, payload: FolderDocumentsIn, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    folder = db.query(CorrespondenceFolder).filter(CorrespondenceFolder.id == folder_id, CorrespondenceFolder.owner_id == user.id).first()
+    if not folder:
+        raise HTTPException(status_code=404, detail="Thư mục không tồn tại.")
+    docs = db.query(CorrespondenceDocument).filter(CorrespondenceDocument.id.in_(payload.document_ids)).all()
+    if len(docs) != len(set(payload.document_ids)) or any(doc.direction != folder.direction or not can_view_corr(user, doc) for doc in docs):
+        raise HTTPException(status_code=400, detail="Có công văn không hợp lệ hoặc không có quyền xem.")
+    # Each user can place a document in one folder; adding it here moves it.
+    db.query(CorrespondenceFolderItem).filter(
+        CorrespondenceFolderItem.owner_id == user.id,
+        CorrespondenceFolderItem.correspondence_id.in_(payload.document_ids),
+    ).delete(synchronize_session=False)
+    db.add_all([CorrespondenceFolderItem(folder_id=folder.id, correspondence_id=doc.id, owner_id=user.id) for doc in docs])
+    _audit(db, user, "CORR_FOLDER_MOVE", None, request)
+    db.commit()
+    return {"success": True}
 
 
 # ---------- CRUD ----------
 
 def _create(direction: str, payload: CorrCreate, db: Session, user: User, request: Request | None = None):
+    folder = _get_personal_folder(db, user, direction, payload.folder_id) if payload.folder_id else None
     try:
         doc = svc.create_document(db, direction, payload.model_dump(), user.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     _audit(db, user, "CORR_CREATE", doc.id, request)
+    if folder:
+        db.add(CorrespondenceFolderItem(folder_id=folder.id, correspondence_id=doc.id, owner_id=user.id))
     db.commit()
     return doc
 
