@@ -190,13 +190,14 @@ def replace_links(db: Session, doc: CorrespondenceDocument, links: list) -> None
 
 def apply_corr_filters(query, direction: str, q=None, type_id=None, signer=None,
                        department=None, security=None, urgency=None, status=None,
-                       date_from=None, date_to=None):
+                       date_from=None, date_to=None, document_type_joined=False):
     from app.models.correspondence import CorrespondenceDocument as CD
 
     query = query.filter(CD.direction == direction)
     if q:
         like = f"%{normalize_text(q) or q}%"
-        query = query.outerjoin(DocumentType, CD.document_type_id == DocumentType.id)
+        if not document_type_joined:
+            query = query.outerjoin(DocumentType, CD.document_type_id == DocumentType.id)
         query = query.filter(or_(
             CD.document_number.ilike(like),
             CD.recipient.ilike(like),

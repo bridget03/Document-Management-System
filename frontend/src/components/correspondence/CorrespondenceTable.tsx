@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, Pencil, Trash2, MoreHorizontal } from "lucide-react";
 import Badge from "../ui/Badge";
 import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
@@ -18,13 +18,29 @@ interface Props {
   dir: Direction;
   base: string;
   onDelete: (doc: CorrDoc) => void;
+  sortBy: CorrSortKey;
+  sortOrder: SortOrder;
+  onSort: (key: CorrSortKey) => void;
 }
+
+export type CorrSortKey =
+  | "document_number"
+  | "document_type"
+  | "party"
+  | "signer"
+  | "signed_date"
+  | "issue_date"
+  | "processing_status";
+export type SortOrder = "asc" | "desc";
 
 export default function CorrespondenceTable({
   items,
   dir,
   base,
   onDelete,
+  sortBy,
+  sortOrder,
+  onSort,
 }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -35,21 +51,34 @@ export default function CorrespondenceTable({
     setAnchor(null);
   }, []);
   const openDoc = items.find((i) => i.id === openId) ?? null;
+  const sortableHeader = (label: string, key: CorrSortKey) => {
+    const active = sortBy === key;
+    const Icon = active ? (sortOrder === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <button
+        type="button"
+        className="-mx-2 inline-flex items-center gap-1 rounded px-2 py-1 text-left hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-600 focus:ring-offset-1"
+        onClick={() => onSort(key)}
+        aria-label={`Sắp xếp theo ${label}${active ? (sortOrder === "asc" ? ", tăng dần" : ", giảm dần") : ""}`}
+      >
+        {label}
+        <Icon size={14} aria-hidden="true" className={active ? "text-brand-700" : "text-gray-400"} />
+      </button>
+    );
+  };
 
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[860px] text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
-            <th className="px-4 py-2.5 font-medium">Số văn bản</th>
-            <th className="px-4 py-2.5 font-medium">Loại</th>
-            <th className="px-4 py-2.5 font-medium">
-              {cfg.partyLabel.replace(" *", "")}
-            </th>
-            <th className="px-4 py-2.5 font-medium">Người ký</th>
-            <th className="px-4 py-2.5 font-medium">Ngày ký</th>
-            <th className="px-4 py-2.5 font-medium">Ngày phát hành</th>
-            <th className="px-4 py-2.5 font-medium">Tình trạng</th>
+            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "document_number" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Số văn bản", "document_number")}</th>
+            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "document_type" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Loại", "document_type")}</th>
+            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "party" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader(cfg.partyLabel.replace(" *", ""), "party")}</th>
+            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "signer" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Người ký", "signer")}</th>
+            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "signed_date" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Ngày ký", "signed_date")}</th>
+            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "issue_date" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Ngày phát hành", "issue_date")}</th>
+            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "processing_status" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Tình trạng", "processing_status")}</th>
             <th className="px-4 py-2.5 text-right font-medium">Actions</th>
           </tr>
         </thead>

@@ -99,6 +99,26 @@ def test_search_filter_pagination():
     assert r.json()["total"] == 3 and len(r.json()["items"]) == 2 and r.json()["total_pages"] == 2
 
 
+def test_list_sorts_visible_columns():
+    c, h = get_client(), login(get_client())
+    first = make_type(c, h, code="CV-A", name="Alpha")
+    second = make_type(c, h, code="CV-Z", name="Zulu")
+    c.post("/api/correspondence/outgoing", headers=h, json={
+        **base_out(second["id"]), "document_number": "CV002", "recipient": "Zulu Corp",
+        "signer": "Zed", "issue_date": "2026-09-18", "processing_status": "ISSUED",
+    })
+    c.post("/api/correspondence/outgoing", headers=h, json={
+        **base_out(first["id"]), "document_number": "CV001", "recipient": "Alpha Corp",
+        "signer": "Alice", "issue_date": "2026-09-17", "processing_status": "DRAFT",
+    })
+    for sort_by in ("document_number", "document_type", "party", "signer", "signed_date", "issue_date", "processing_status"):
+        r = c.get("/api/correspondence/outgoing", headers=h, params={"sort_by": sort_by, "sort_order": "asc"})
+        assert r.status_code == 200, r.text
+    r = c.get("/api/correspondence/outgoing", headers=h, params={"sort_by": "document_type", "sort_order": "asc", "q": "corp"})
+    assert r.status_code == 200, r.text
+    assert [item["document_number"] for item in r.json()["items"]] == ["CV001", "CV002"]
+
+
 def test_types_delete_guard_and_settings():
     c, h = get_client(), login(get_client())
     t = make_type(c, h)

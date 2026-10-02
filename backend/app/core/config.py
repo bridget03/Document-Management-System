@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     GOOGLE_SCOPES: str = "https://www.googleapis.com/auth/drive.readonly"
     DRIVE_TOKEN_KEY: str = ""  # Fernet key (generate: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
     SYNC_INTERVAL_MINUTES: int = 30
-    CORS_ORIGINS: str = "http://localhost:5173"
+    # localhost and 127.0.0.1 are distinct browser origins. Support both for
+    # the default Vite development server so login preflight requests work
+    # regardless of which loopback URL a developer opens.
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
     # Regex cho origin động (VD: Vercel preview URL đổi hash mỗi deploy).
     # VD: https://.*\.vercel\.app
     CORS_ORIGIN_REGEX: str = ""
@@ -31,6 +34,16 @@ class Settings(BaseSettings):
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",") if o.strip()]
+
+    @property
+    def cors_origin_regex(self) -> str:
+        """Use any loopback port for Vite only outside production."""
+        configured = self.CORS_ORIGIN_REGEX.strip()
+        if configured:
+            return configured
+        if self.APP_ENV.lower() != "production":
+            return r"^http://(localhost|127\.0\.0\.1):\d+$"
+        return ""
 
     @property
     def database_url(self) -> str:

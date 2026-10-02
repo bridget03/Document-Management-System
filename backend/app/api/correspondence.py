@@ -27,7 +27,19 @@ from app.services import correspondence_service as svc
 router = APIRouter(prefix="/correspondence", tags=["correspondence"])
 
 DIRECTIONS = ("INCOMING", "OUTGOING", "INTERNAL")
-SORTS = {"issue_date", "signed_date", "document_number", "created_at", "updated_at"}
+# Public sort keys used by the correspondence list.  Keeping this map explicit
+# prevents an arbitrary query parameter from becoming a SQL column reference.
+SORTS = {
+    "document_number": CorrespondenceDocument.document_number,
+    "document_type": DocumentType.name,
+    "party": None,  # Sender for incoming documents, recipient otherwise.
+    "signer": CorrespondenceDocument.signer,
+    "signed_date": CorrespondenceDocument.signed_date,
+    "issue_date": CorrespondenceDocument.issue_date,
+    "processing_status": CorrespondenceDocument.processing_status,
+    "created_at": CorrespondenceDocument.created_at,
+    "updated_at": CorrespondenceDocument.updated_at,
+}
 
 
 def _direction_or_400(direction: str) -> str:
@@ -75,18 +87,29 @@ def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=
           sort_by="issue_date", sort_order="desc", scope="all", page=1, page_size=20):
     if sort_by not in SORTS:
         sort_by = "issue_date"
-    col = getattr(CorrespondenceDocument, sort_by)
-    col = col.desc() if sort_order == "desc" else col.asc()
+    if sort_order not in {"asc", "desc"}:
+        sort_order = "desc"
+    col = SORTS[sort_by]
+    if sort_by == "party":
+        col = CorrespondenceDocument.sender if direction == "INCOMING" else CorrespondenceDocument.recipient
     query = scope_corr_query(db.query(CorrespondenceDocument), user)
     if scope == "mine":
         query = query.filter(CorrespondenceDocument.created_by == user.id)
     elif scope == "department" and getattr(user, "department", None):
         query = query.filter(dept_match_filter(CorrespondenceDocument.department, user.department))
+    # Needed only for the document-type label column. This relationship is
+    # optional, hence the outer join; search reuses it when present.
+    document_type_joined = sort_by == "document_type"
+    if document_type_joined:
+        query = query.outerjoin(DocumentType, CorrespondenceDocument.document_type_id == DocumentType.id)
     query = svc.apply_corr_filters(
         query, direction, q, type_id, signer,
-        department, security, urgency, status, date_from, date_to)
+        department, security, urgency, status, date_from, date_to, document_type_joined)
     total = query.count()
-    items = query.order_by(col).offset((page - 1) * page_size).limit(page_size).all()
+    order = col.desc() if sort_order == "desc" else col.asc()
+    # A deterministic fallback prevents records with equal values moving
+    # between pages as users navigate a sorted result.
+    items = query.order_by(order, CorrespondenceDocument.id.asc()).offset((page - 1) * page_size).limit(page_size).all()
     return {"items": items, "page": page, "page_size": page_size,
             "total": total, "total_pages": (total + page_size - 1) // page_size if total else 0}
 

@@ -25,7 +25,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-dms_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dms}
       JWT_SECRET: ${JWT_SECRET:?Hãy đặt JWT_SECRET trong file .env ở thư mục gốc}
       STORAGE_PATH: /data/storage
-      CORS_ORIGINS: http://localhost:5173
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_REDIRECT_URI: ${GOOGLE_REDIRECT_URI:-http://localhost:8000/api/google-drive/callback}

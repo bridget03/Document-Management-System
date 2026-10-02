@@ -27,6 +27,20 @@ def auth_header(client):
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
+def test_login_preflight_allows_loopback_vite_origin():
+    client = get_client()
+    r = client.options(
+        "/api/auth/login",
+        headers={
+            "Origin": "http://localhost:5174",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+    assert r.status_code == 200, r.text
+    assert r.headers["access-control-allow-origin"] == "http://localhost:5174"
+
+
 def test_login_upload_search_download_delete():
     client = get_client()
     h = auth_header(client)

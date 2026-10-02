@@ -28,7 +28,7 @@ import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
-import CorrespondenceTable from "../components/correspondence/CorrespondenceTable";
+import CorrespondenceTable, { type CorrSortKey, type SortOrder } from "../components/correspondence/CorrespondenceTable";
 import IncomingTable from "../components/correspondence/IncomingTable";
 import OutgoingTable from "../components/correspondence/OutgoingTable";
 import ExcelImportModal from "../components/correspondence/ExcelImportModal";
@@ -65,6 +65,8 @@ export default function CorrespondenceList({
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
+  const [sortBy, setSortBy] = useState<CorrSortKey>("issue_date");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [del, setDel] = useState<CorrDoc | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const qc = useQueryClient();
@@ -85,7 +87,7 @@ export default function CorrespondenceList({
 
   const filterCount = [typeId, signer, status, scope !== "all" ? scope : ""].filter(Boolean).length;
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ["corr", direction, searchQuery, typeId, signer, status, scope, page],
+    queryKey: ["corr", direction, searchQuery, typeId, signer, status, scope, sortBy, sortOrder, page],
     queryFn: () =>
       corrList(apiDir, {
         q: searchQuery || undefined,
@@ -93,6 +95,8 @@ export default function CorrespondenceList({
         signer: signer || undefined,
         status: status || undefined,
         scope: scope !== "all" ? scope : undefined,
+        sort_by: sortBy,
+        sort_order: sortOrder,
         page,
         page_size: 20,
       }),
@@ -115,6 +119,16 @@ export default function CorrespondenceList({
     setSigner("");
     setStatus("");
     setScope("all");
+    setPage(1);
+  };
+
+  const handleSort = (key: CorrSortKey) => {
+    if (key === sortBy) {
+      setSortOrder((order) => (order === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortOrder("asc");
+    }
     setPage(1);
   };
 
@@ -283,12 +297,18 @@ export default function CorrespondenceList({
               items={data?.items || []}
               base={base}
               onDelete={(d) => setDel(d)}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
             />
           ) : direction === "OUTGOING" ? (
             <OutgoingTable
               items={data?.items || []}
               base={base}
               onDelete={(d) => setDel(d)}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
             />
           ) : (
             <CorrespondenceTable
@@ -296,6 +316,9 @@ export default function CorrespondenceList({
               dir={direction}
               base={base}
               onDelete={(d) => setDel(d)}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
             />
           )}
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2.5 text-sm">
