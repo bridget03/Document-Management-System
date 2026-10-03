@@ -4,7 +4,6 @@ import { me } from "../../services/authApi";
 import {
   LayoutDashboard,
   Files,
-  Upload,
   HardDrive,
   Tags,
   FolderOpen,

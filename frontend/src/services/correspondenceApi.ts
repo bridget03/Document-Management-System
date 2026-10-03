@@ -18,6 +18,16 @@ export const corrUpdate = (direction: ApiDir, id: string, payload: unknown) =>
 export const corrDelete = (direction: ApiDir, id: string) =>
   api.delete(`${base}/${direction}/${id}`).then((r) => r.data);
 
+export interface CorrTreeStat {
+  year: number;
+  direction: string;
+  month: number;
+  count: number;
+}
+
+export const corrTreeStats = (scope?: string) =>
+  api.get(`${base}/stats/tree`, { params: scope && scope !== "all" ? { scope } : {} }).then((r) => r.data as { items: CorrTreeStat[] });
+
 export const corrFolders = (direction: string) =>
   api.get(`${base}/folders`, { params: { direction } }).then((r) => r.data);
 

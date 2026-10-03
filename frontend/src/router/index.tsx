@@ -8,11 +8,9 @@ import Dashboard from "../pages/Dashboard";
 import Documents from "../pages/Documents";
 import DocumentDetail from "../pages/DocumentDetail";
 import PreviewPage from "../pages/PreviewPage";
-import CorrespondenceList from "../pages/CorrespondenceList";
+import CorrespondenceExplorer from "../pages/CorrespondenceExplorer";
 import CorrespondenceFormPage from "../pages/CorrespondenceFormPage";
 import CorrespondenceDetail from "../pages/CorrespondenceDetail";
-import IncomingList from "../pages/IncomingList";
-import OutgoingList from "../pages/OutgoingList";
 import IncomingFormPage from "../pages/IncomingFormPage";
 import OutgoingFormPage from "../pages/OutgoingFormPage";
 import IncomingDetail from "../pages/IncomingDetail";
@@ -122,27 +120,16 @@ export default function Router() {
             </Guard>
           }
         />
-        <Route path="/correspondence/incoming" element={<Guard><IncomingList /></Guard>} />
-        <Route path="/correspondence/outgoing" element={<Guard><OutgoingList /></Guard>} />
+        <Route path="/correspondence" element={<Guard><CorrespondenceExplorer /></Guard>} />
+        <Route path="/correspondence/incoming" element={<Guard><CorrespondenceExplorer fixedDirection="INCOMING" /></Guard>} />
+        <Route path="/correspondence/outgoing" element={<Guard><CorrespondenceExplorer fixedDirection="OUTGOING" /></Guard>} />
         <Route path="/correspondence/incoming/new" element={<Guard><IncomingFormPage /></Guard>} />
         <Route path="/correspondence/outgoing/new" element={<Guard><OutgoingFormPage /></Guard>} />
         <Route path="/correspondence/incoming/:id" element={<Guard><IncomingDetail /></Guard>} />
         <Route path="/correspondence/outgoing/:id" element={<Guard><OutgoingDetail /></Guard>} />
         <Route path="/correspondence/incoming/:id/edit" element={<Guard><IncomingFormPage /></Guard>} />
         <Route path="/correspondence/outgoing/:id/edit" element={<Guard><OutgoingFormPage /></Guard>} />
-        <Route
-          path="/correspondence/internal"
-          element={
-            <Guard>
-              <CorrespondenceList
-                direction="INTERNAL"
-                title="Công văn nội bộ"
-                subtitle="Quản lý các văn bản lưu hành trong doanh nghiệp."
-                base="/correspondence/internal"
-              />
-            </Guard>
-          }
-        />
+        <Route path="/correspondence/internal" element={<Guard><CorrespondenceExplorer fixedDirection="INTERNAL" /></Guard>} />
         <Route
           path="/correspondence/internal/new"
           element={

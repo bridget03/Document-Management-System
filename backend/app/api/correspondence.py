@@ -184,6 +184,46 @@ def list_internal(q: str | None = None, type_id: str | None = None, signer: str 
                  status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size)
 
 
+# ---------- Time tree stats (Year -> Direction -> Month) ----------
+
+@router.get("/stats/tree")
+def stats_tree(
+    scope: str = Query("all", description="all|mine|department"),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Count công văn theo (năm, direction, tháng) dựa trên issue_date.
+
+    Dùng để dựng cây Công văn -> Năm -> Loại -> Tháng trong 1 request,
+    thay vì gọi N lần list API. Tôn trọng phân quyền xem (visibility).
+    Bản ghi issue_date IS NULL không lên cây.
+    """
+    year_expr = func.extract("year", CorrespondenceDocument.issue_date).label("year")
+    month_expr = func.extract("month", CorrespondenceDocument.issue_date).label("month")
+    query = db.query(
+        year_expr,
+        CorrespondenceDocument.direction,
+        month_expr,
+        func.count(CorrespondenceDocument.id).label("count"),
+    )
+    query = scope_corr_query(query, user)
+    if scope == "mine":
+        query = query.filter(CorrespondenceDocument.created_by == user.id)
+    elif scope == "department" and getattr(user, "department", None):
+        query = query.filter(dept_match_filter(CorrespondenceDocument.department, user.department))
+    query = query.filter(CorrespondenceDocument.issue_date.is_not(None))
+    query = query.group_by(year_expr, CorrespondenceDocument.direction, month_expr)
+    query = query.order_by(year_expr.desc(), CorrespondenceDocument.direction.asc(), month_expr.asc())
+    out = []
+    for year, direction, month, count in query.all():
+        try:
+            y, m = int(year), int(month)
+        except (TypeError, ValueError):
+            continue
+        out.append({"year": y, "direction": direction, "month": m, "count": count})
+    return {"items": out}
+
+
 # ---------- Personal folders ----------
 
 @router.get("/folders")
