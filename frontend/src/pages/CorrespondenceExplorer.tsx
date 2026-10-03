@@ -115,6 +115,7 @@ export default function CorrespondenceExplorer({ fixedDirection = null }: { fixe
   const [typeId, setTypeId] = useState("");
   const [signer, setSigner] = useState("");
   const [status, setStatus] = useState("");
+  const [importantOnly, setImportantOnly] = useState(false);
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
@@ -239,9 +240,9 @@ export default function CorrespondenceExplorer({ fixedDirection = null }: { fixe
 
   // ---- Doc list theo node thời gian ----
   const range = selection.year && selection.direction ? monthRange(selection.year, selection.month) : null;
-  const filterCount = [typeId, signer, status, scope !== "all" ? scope : ""].filter(Boolean).length;
+  const filterCount = [typeId, signer, status, scope !== "all" ? scope : "", importantOnly ? "important" : ""].filter(Boolean).length;
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ["corr", direction, selection.year, selection.month, searchQuery, typeId, signer, status, scope, folderId, sortBy, sortOrder, page],
+    queryKey: ["corr", direction, selection.year, selection.month, searchQuery, typeId, signer, status, scope, folderId, sortBy, sortOrder, page, importantOnly],
     queryFn: () => corrList(apiDir!, {
       q: searchQuery || undefined,
       type_id: typeId || undefined,
@@ -249,6 +250,7 @@ export default function CorrespondenceExplorer({ fixedDirection = null }: { fixe
       status: status || undefined,
       scope: scope !== "all" ? scope : undefined,
       folder_id: folderId || undefined,
+      is_important: importantOnly ? true : undefined,
       date_from: range?.date_from,
       date_to: range?.date_to,
       sort_by: sortBy, sort_order: sortOrder, page, page_size: 20,
@@ -297,7 +299,7 @@ export default function CorrespondenceExplorer({ fixedDirection = null }: { fixe
     onError: () => toast("error", "Không chuyển được công văn."),
   });
 
-  const clearAll = () => { setSearchInput(""); setTypeId(""); setSigner(""); setStatus(""); setScope("all"); setPage(1); };
+  const clearAll = () => { setSearchInput(""); setTypeId(""); setSigner(""); setStatus(""); setImportantOnly(false); setScope("all"); setPage(1); };
   const handleSort = (key: CorrSortKey) => {
     if (key === sortBy) setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
     else { setSortBy(key); setSortOrder("asc"); }
@@ -476,6 +478,15 @@ export default function CorrespondenceExplorer({ fixedDirection = null }: { fixe
                     </div>
                   </div>
                 )}
+                <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-medium text-red-700">
+                  <input
+                    type="checkbox"
+                    checked={importantOnly}
+                    onChange={(e) => { setImportantOnly(e.target.checked); setPage(1); }}
+                    className="h-4 w-4 accent-red-600"
+                  />
+                  Chỉ xem công văn quan trọng
+                </label>
                 {(filterCount > 0 || searchQuery) && (
                   <div className="flex items-center gap-2 text-xs text-gray-500">
                     <span>{filterCount} bộ lọc đang dùng</span>

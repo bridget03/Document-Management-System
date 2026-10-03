@@ -9,6 +9,7 @@ import {
   ExternalLink,
   Link2,
   Paperclip,
+  Star,
 } from "lucide-react";
 import { corrGet, corrDelete } from "../services/correspondenceApi";
 import { downloadViaBlob } from "../services/documentApi";
@@ -142,6 +143,11 @@ export default function CorrespondenceDetail({
               {data.document_number}
             </h1>
             <Badge tone={st.tone}>{st.label}</Badge>
+            {data.is_important && (
+              <Badge tone="danger">
+                <Star size={11} aria-hidden="true" /> Quan trọng
+              </Badge>
+            )}
           </div>
           <p className="mt-0.5 text-sm text-gray-500">
             {data.doc_type
@@ -223,6 +229,15 @@ export default function CorrespondenceDetail({
             </InfoRow>
             <InfoRow label="Tình trạng xử lý">
               <Badge tone={st.tone}>{st.label}</Badge>
+            </InfoRow>
+            <InfoRow label="Mức độ quan trọng">
+              {data.is_important ? (
+                <Badge tone="danger">
+                  <Star size={11} aria-hidden="true" /> Quan trọng
+                </Badge>
+              ) : (
+                "—"
+              )}
             </InfoRow>
             <InfoRow label="Chia sẻ">
               {data.visibility === "PRIVATE" ? (

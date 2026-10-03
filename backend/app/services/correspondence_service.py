@@ -142,6 +142,7 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
         document_type_id=data.get("document_type_id"),
         processing_status=data.get("processing_status") or "DRAFT",
         notes=normalize_text(data.get("notes")) if data.get("notes") else None,
+        is_important=bool(data.get("is_important")),
         visibility=(data.get("visibility") or "ORGANIZATION").upper(),
         department=(normalize_text((data.get("department") or "").strip()) or None),
         created_by=user_id,
@@ -190,7 +191,8 @@ def replace_links(db: Session, doc: CorrespondenceDocument, links: list) -> None
 
 def apply_corr_filters(query, direction: str, q=None, type_id=None, signer=None,
                        department=None, security=None, urgency=None, status=None,
-                       date_from=None, date_to=None, document_type_joined=False):
+                       date_from=None, date_to=None, document_type_joined=False,
+                       is_important=None):
     from app.models.correspondence import CorrespondenceDocument as CD
 
     query = query.filter(CD.direction == direction)
@@ -223,6 +225,10 @@ def apply_corr_filters(query, direction: str, q=None, type_id=None, signer=None,
         query = query.filter(CD.issue_date >= date_from)
     if date_to:
         query = query.filter(CD.issue_date <= date_to)
+    if is_important is True:
+        query = query.filter(CD.is_important.is_(True))
+    elif is_important is False:
+        query = query.filter(CD.is_important.is_(False))
     return query.distinct()
 
 

@@ -35,9 +35,9 @@ export default function TrendChart({ data }: { data: Point[] }) {
             contentStyle={{ borderRadius: 8, border: '1px solid #e5e7eb', fontSize: 12 }}
           />
           <Legend formatter={(v) => SERIES_LABELS[String(v)] || v} wrapperStyle={{ fontSize: 12 }} />
-          <Line type="monotone" dataKey="incoming" stroke={SERIES_COLORS.incoming} strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="outgoing" stroke={SERIES_COLORS.outgoing} strokeWidth={2} dot={false} />
-          <Line type="monotone" dataKey="internal" stroke={SERIES_COLORS.internal} strokeWidth={2} dot={false} />
+          <Line type="monotone" dataKey="incoming" stroke={SERIES_COLORS.incoming} strokeWidth={2} dot={data.length <= 2} />
+          <Line type="monotone" dataKey="outgoing" stroke={SERIES_COLORS.outgoing} strokeWidth={2} dot={data.length <= 2} />
+          <Line type="monotone" dataKey="internal" stroke={SERIES_COLORS.internal} strokeWidth={2} dot={data.length <= 2} />
         </LineChart>
       </ResponsiveContainer>
     </div>

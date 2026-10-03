@@ -1,7 +1,7 @@
 import { useState } from "react";
 import Button from "../ui/Button";
 
-export type Preset = "7d" | "30d" | "month" | "3m" | "12m" | "custom";
+export type Preset = "today" | "7d" | "30d" | "month" | "3m" | "12m" | "custom";
 
 export interface Range {
   from?: string;
@@ -9,10 +9,11 @@ export interface Range {
 }
 
 const PRESETS: { value: Exclude<Preset, "custom">; label: string }[] = [
+  { value: "today", label: "Hôm nay" },
   { value: "7d", label: "7 ngày" },
   { value: "30d", label: "30 ngày" },
   { value: "month", label: "Tháng này" },
-  { value: "3m", label: "3 tháng" },
+  { value: "3m", label: "Quý này" },
   { value: "12m", label: "12 tháng" },
 ];
 
@@ -23,6 +24,9 @@ function toISO(d: Date): string {
 export function presetRange(p: Exclude<Preset, "custom">): Range {
   const today = new Date();
   const to = toISO(today);
+  if (p === "today") {
+    return { from: to, to };
+  }
   if (p === "7d") {
     const from = new Date(today);
     from.setDate(from.getDate() - 6);

@@ -96,6 +96,7 @@ class CorrCreate(BaseModel):
     document_type_id: str | None = None
     processing_status: str = "DRAFT"
     notes: str | None = None
+    is_important: bool = False
     visibility: str = "ORGANIZATION"
     department: str | None = None
     # Personal organization only; never changes a document's shared permissions.
@@ -120,6 +121,7 @@ class CorrUpdate(BaseModel):
     document_type_id: str | None = None
     processing_status: str | None = None
     notes: str | None = None
+    is_important: bool | None = None
     visibility: str | None = None
     department: str | None = None
     attachment_ids: list[str] | None = None
@@ -183,6 +185,7 @@ class CorrOut(BaseModel):
     doc_type: DocTypeOut | None = None
     processing_status: str
     notes: str | None = None
+    is_important: bool = False
     visibility: str = "ORGANIZATION"
     department: str | None = None
     created_by: str | None = None

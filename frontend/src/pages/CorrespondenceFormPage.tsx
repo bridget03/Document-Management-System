@@ -50,6 +50,7 @@ function toPayload(v: CorrFormValue, direction: Direction, folderId?: string | n
     document_type_id: v.document_type_id || undefined,
     processing_status: v.processing_status,
     notes: v.notes.trim() || undefined,
+    is_important: v.is_important,
     visibility: v.visibility || undefined,
     department: multiParty(v.department),
     folder_id: folderId || undefined,

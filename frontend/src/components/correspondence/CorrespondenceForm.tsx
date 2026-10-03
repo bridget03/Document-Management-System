@@ -37,6 +37,7 @@ export interface CorrFormValue {
   document_type_id: string;
   processing_status: string;
   notes: string;
+  is_important: boolean;
   visibility: string;
   department: string;
   attachment_ids: { document_id: string; name: string }[];
@@ -71,6 +72,7 @@ const empty: CorrFormValue = {
   document_type_id: "",
   processing_status: "DRAFT",
   notes: "",
+  is_important: false,
   visibility: "ORGANIZATION",
   department: "",
   attachment_ids: [],
@@ -107,6 +109,7 @@ function toValue(d: CorrDoc): CorrFormValue {
     document_type_id: d.document_type_id || "",
     processing_status: d.processing_status,
     notes: d.notes || "",
+    is_important: !!d.is_important,
     visibility: d.visibility || "ORGANIZATION",
     department: d.department || "",
     attachment_ids: d.attachments.map((a) => ({
@@ -565,6 +568,19 @@ export default function CorrespondenceForm({
               </datalist>
             )}
           </Field>
+          <div className="flex items-center sm:col-span-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100">
+              <input
+                type="checkbox"
+                checked={v.is_important}
+                onChange={(e) =>
+                  setV((p) => ({ ...p, is_important: e.target.checked }))
+                }
+                className="h-4 w-4 accent-red-600"
+              />
+              Đánh dấu công văn quan trọng
+            </label>
+          </div>
         </div>
       </section>
 

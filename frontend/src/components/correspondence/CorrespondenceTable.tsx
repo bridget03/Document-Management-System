@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, FolderInput, Pencil, Trash2, MoreHorizontal } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, FolderInput, Pencil, Trash2, MoreHorizontal, Star } from "lucide-react";
 import Badge from "../ui/Badge";
 import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
@@ -93,12 +93,19 @@ export default function CorrespondenceTable({
             return (
               <tr key={d.id} className="transition-colors hover:bg-gray-50">
                 <td className="px-4 py-2.5">
-                  <Link
-                    to={`${base}/${d.id}`}
-                    className="font-medium text-brand-700 underline  hover:text-slate-600 "
-                  >
-                    {d.document_number}
-                  </Link>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <Link
+                      to={`${base}/${d.id}`}
+                      className="font-medium text-brand-700 underline  hover:text-slate-600 "
+                    >
+                      {d.document_number}
+                    </Link>
+                    {d.is_important && (
+                      <Badge tone="danger">
+                        <Star size={11} aria-hidden="true" /> Quan trọng
+                      </Badge>
+                    )}
+                  </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
                   {d.doc_type ? `${d.doc_type.code} · ${d.doc_type.name}` : "—"}

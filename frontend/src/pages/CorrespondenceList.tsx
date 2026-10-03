@@ -107,6 +107,7 @@ export default function CorrespondenceList({
   const [typeId, setTypeId] = useState("");
   const [signer, setSigner] = useState("");
   const [status, setStatus] = useState("");
+  const [importantOnly, setImportantOnly] = useState(false);
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
   const [page, setPage] = useState(1);
@@ -162,10 +163,10 @@ export default function CorrespondenceList({
     queryFn: () => corrFolders(direction),
   });
 
-  const filterCount = [typeId, signer, status, scope !== "all" ? scope : ""].filter(Boolean).length;
+  const filterCount = [typeId, signer, status, scope !== "all" ? scope : "", importantOnly ? "important" : ""].filter(Boolean).length;
   const activeFolder = folders.find((f) => f.id === folderId) ?? null;
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ["corr", direction, searchQuery, typeId, signer, status, scope, folderId, sortBy, sortOrder, page],
+    queryKey: ["corr", direction, searchQuery, typeId, signer, status, scope, folderId, sortBy, sortOrder, page, importantOnly],
     queryFn: () =>
       corrList(apiDir, {
         q: searchQuery || undefined,
@@ -174,6 +175,7 @@ export default function CorrespondenceList({
         status: status || undefined,
         scope: scope !== "all" ? scope : undefined,
         folder_id: folderId || undefined,
+        is_important: importantOnly ? true : undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
         page,
@@ -232,6 +234,7 @@ export default function CorrespondenceList({
     setTypeId("");
     setSigner("");
     setStatus("");
+    setImportantOnly(false);
     setScope("all");
     setPage(1);
   };
@@ -364,6 +367,18 @@ export default function CorrespondenceList({
             </div>
           </div>
         )}
+        <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-medium text-red-700">
+          <input
+            type="checkbox"
+            checked={importantOnly}
+            onChange={(e) => {
+              setImportantOnly(e.target.checked);
+              setPage(1);
+            }}
+            className="h-4 w-4 accent-red-600"
+          />
+          Chỉ xem công văn quan trọng
+        </label>
         {(filterCount > 0 || searchQuery) && (
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <span>{filterCount} bộ lọc đang dùng</span>

@@ -81,6 +81,7 @@ export interface CorrDoc {
   doc_type?: DocType | null;
   processing_status: string;
   notes?: string | null;
+  is_important: boolean;
   visibility?: string | null;
   department?: string | null;
   created_by?: string | null;

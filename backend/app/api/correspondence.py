@@ -100,7 +100,8 @@ def _get_personal_folder(db: Session, user: User, direction: str, folder_id: str
 def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=None,
           department=None, security=None, urgency=None, status=None,
           date_from: date | None = None, date_to: date | None = None,
-          sort_by="issue_date", sort_order="desc", scope="all", folder_id=None, page=1, page_size=20):
+          sort_by="issue_date", sort_order="desc", scope="all", folder_id=None, page=1, page_size=20,
+          is_important: bool | None = None):
     if sort_by not in SORTS:
         sort_by = "issue_date"
     if sort_order not in {"asc", "desc"}:
@@ -135,7 +136,8 @@ def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=
         query = query.outerjoin(DocumentType, CorrespondenceDocument.document_type_id == DocumentType.id)
     query = svc.apply_corr_filters(
         query, direction, q, type_id, signer,
-        department, security, urgency, status, date_from, date_to, document_type_joined)
+        department, security, urgency, status, date_from, date_to, document_type_joined,
+        is_important)
     total = query.count()
     order = col.desc() if sort_order == "desc" else col.asc()
     # A deterministic fallback prevents records with equal values moving
@@ -152,10 +154,12 @@ def list_incoming(q: str | None = None, type_id: str | None = None, signer: str 
                   sort_by: str = "issue_date", sort_order: str = "desc",
                   scope: str = Query("all", description="all|mine|department"),
                   folder_id: str | None = None,
+                  is_important: bool | None = None,
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("INCOMING", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size,
+                 is_important)
 
 
 @router.get("/outgoing", response_model=PaginatedCorr)
@@ -165,10 +169,12 @@ def list_outgoing(q: str | None = None, type_id: str | None = None, signer: str 
                   sort_by: str = "issue_date", sort_order: str = "desc",
                   scope: str = Query("all", description="all|mine|department"),
                   folder_id: str | None = None,
+                  is_important: bool | None = None,
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("OUTGOING", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size,
+                 is_important)
 
 
 @router.get("/internal", response_model=PaginatedCorr)
@@ -178,10 +184,12 @@ def list_internal(q: str | None = None, type_id: str | None = None, signer: str 
                   sort_by: str = "issue_date", sort_order: str = "desc",
                   scope: str = Query("all", description="all|mine|department"),
                   folder_id: str | None = None,
+                  is_important: bool | None = None,
                   page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100),
                   db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return _list("INTERNAL", db, user, q, type_id, signer, department, security, urgency,
-                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size)
+                 status, date_from, date_to, sort_by, sort_order, scope, folder_id, page, page_size,
+                 is_important)
 
 
 # ---------- Time tree stats (Year -> Direction -> Month) ----------

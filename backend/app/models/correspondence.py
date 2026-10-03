@@ -52,6 +52,7 @@ class CorrespondenceDocument(Base):
     document_type_id = Column(String(36), ForeignKey("document_types.id"), nullable=True, index=True)
     processing_status = Column(String(30), nullable=False, default="DRAFT", index=True)
     notes = Column(Text, nullable=True)
+    is_important = Column(Boolean, nullable=False, default=False, index=True)
     # Sharing scope, same semantics as documents.visibility.
     visibility = Column(String(20), nullable=False, default="ORGANIZATION")
     department = Column(String(255), nullable=True, index=True)
