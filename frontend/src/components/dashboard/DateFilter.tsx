@@ -10,11 +10,10 @@ export interface Range {
 
 const PRESETS: { value: Exclude<Preset, "custom">; label: string }[] = [
   { value: "today", label: "Hôm nay" },
-  { value: "7d", label: "7 ngày" },
-  { value: "30d", label: "30 ngày" },
+  { value: "7d", label: "Tuần này" },
   { value: "month", label: "Tháng này" },
   { value: "3m", label: "Quý này" },
-  { value: "12m", label: "12 tháng" },
+  { value: "12m", label: "Năm nay" },
 ];
 
 function toISO(d: Date): string {

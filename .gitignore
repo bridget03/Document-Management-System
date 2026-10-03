@@ -38,3 +38,6 @@ __pycache__/
 
 # Storage
 storage/
+
+# Local backups (scripts/backup.sh) - never commit
+backups/
