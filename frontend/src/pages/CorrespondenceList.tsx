@@ -35,7 +35,10 @@ import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
-import CorrespondenceTable, { type CorrSortKey, type SortOrder } from "../components/correspondence/CorrespondenceTable";
+import CorrespondenceTable, {
+  type CorrSortKey,
+  type SortOrder,
+} from "../components/correspondence/CorrespondenceTable";
 import IncomingTable from "../components/correspondence/IncomingTable";
 import OutgoingTable from "../components/correspondence/OutgoingTable";
 import ExcelImportModal from "../components/correspondence/ExcelImportModal";
@@ -71,25 +74,55 @@ interface FolderTreeProps {
   onDelete: (id: string) => void;
 }
 
-function FolderTree({ folders, parentId, selectedId, onSelect, onCreateChild, onDelete }: FolderTreeProps) {
-  return folders.filter((folder) => folder.parent_id === parentId).map((folder) => (
-    <div key={folder.id} className="ml-3 border-l border-gray-200 pl-2">
-      <div className="group flex items-center rounded-md hover:bg-gray-50">
-        <button
-          type="button"
-          className={`flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left text-xs font-medium ${selectedId === folder.id ? "text-brand-700" : "text-gray-700"}`}
-          onClick={() => onSelect(folder.id)}
-        >
-          <Folder size={14} className="shrink-0" />
-          <span className="truncate">{folder.name}</span>
-          <span className="ml-auto text-gray-400">{folder.item_count}</span>
-        </button>
-        <button type="button" className="p-1.5 text-gray-400 hover:text-brand-700" aria-label={`Tạo thư mục con trong ${folder.name}`} onClick={() => onCreateChild(folder.id)}><FolderPlus size={14} /></button>
-        <button type="button" className="p-1.5 text-gray-400 hover:text-red-600" aria-label={`Xóa thư mục ${folder.name}`} onClick={() => onDelete(folder.id)}><Trash2 size={13} /></button>
+function FolderTree({
+  folders,
+  parentId,
+  selectedId,
+  onSelect,
+  onCreateChild,
+  onDelete,
+}: FolderTreeProps) {
+  return folders
+    .filter((folder) => folder.parent_id === parentId)
+    .map((folder) => (
+      <div key={folder.id} className="ml-3 border-l border-gray-200 pl-2">
+        <div className="group flex items-center rounded-md hover:bg-gray-50">
+          <button
+            type="button"
+            className={`flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left text-xs font-medium ${selectedId === folder.id ? "text-brand-700" : "text-gray-700"}`}
+            onClick={() => onSelect(folder.id)}
+          >
+            <Folder size={14} className="shrink-0" />
+            <span className="truncate">{folder.name}</span>
+            <span className="ml-auto text-gray-400">{folder.item_count}</span>
+          </button>
+          <button
+            type="button"
+            className="p-1.5 text-gray-400 hover:text-brand-700"
+            aria-label={`Tạo thư mục con trong ${folder.name}`}
+            onClick={() => onCreateChild(folder.id)}
+          >
+            <FolderPlus size={14} />
+          </button>
+          <button
+            type="button"
+            className="p-1.5 text-gray-400 hover:text-red-600"
+            aria-label={`Xóa thư mục ${folder.name}`}
+            onClick={() => onDelete(folder.id)}
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+        <FolderTree
+          folders={folders}
+          parentId={folder.id}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          onCreateChild={onCreateChild}
+          onDelete={onDelete}
+        />
       </div>
-      <FolderTree folders={folders} parentId={folder.id} selectedId={selectedId} onSelect={onSelect} onCreateChild={onCreateChild} onDelete={onDelete} />
-    </div>
-  ));
+    ));
 }
 
 export default function CorrespondenceList({
@@ -115,7 +148,9 @@ export default function CorrespondenceList({
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [del, setDel] = useState<CorrDoc | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [folderId, setFolderId] = useState<string | null>(() => searchParams.get("folder"));
+  const [folderId, setFolderId] = useState<string | null>(() =>
+    searchParams.get("folder"),
+  );
   const [folderName, setFolderName] = useState("");
   const [folderParentId, setFolderParentId] = useState<string | null>(null);
   const [folderCreateOpen, setFolderCreateOpen] = useState(false);
@@ -128,12 +163,15 @@ export default function CorrespondenceList({
   const selectFolder = (id: string | null) => {
     setFolderId(id);
     setPage(1);
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (id) next.set("folder", id);
-      else next.delete("folder");
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (id) next.set("folder", id);
+        else next.delete("folder");
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   // Đồng bộ khi user dùng nút Back/Forward hoặc quay về từ trang tạo (?folder=).
@@ -163,10 +201,29 @@ export default function CorrespondenceList({
     queryFn: () => corrFolders(direction),
   });
 
-  const filterCount = [typeId, signer, status, scope !== "all" ? scope : "", importantOnly ? "important" : ""].filter(Boolean).length;
+  const filterCount = [
+    typeId,
+    signer,
+    status,
+    scope !== "all" ? scope : "",
+    importantOnly ? "important" : "",
+  ].filter(Boolean).length;
   const activeFolder = folders.find((f) => f.id === folderId) ?? null;
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ["corr", direction, searchQuery, typeId, signer, status, scope, folderId, sortBy, sortOrder, page, importantOnly],
+    queryKey: [
+      "corr",
+      direction,
+      searchQuery,
+      typeId,
+      signer,
+      status,
+      scope,
+      folderId,
+      sortBy,
+      sortOrder,
+      page,
+      importantOnly,
+    ],
     queryFn: () =>
       corrList(apiDir, {
         q: searchQuery || undefined,
@@ -219,7 +276,8 @@ export default function CorrespondenceList({
   });
 
   const moveToFolder = useMutation({
-    mutationFn: (targetFolderId: string) => corrMoveToFolder(targetFolderId, [moveDoc!.id]),
+    mutationFn: (targetFolderId: string) =>
+      corrMoveToFolder(targetFolderId, [moveDoc!.id]),
     onSuccess: () => {
       setMoveDoc(null);
       qc.invalidateQueries({ queryKey: ["corr-folders", direction] });
@@ -261,12 +319,22 @@ export default function CorrespondenceList({
             <Upload size={15} /> Nhập từ Excel
           </Button>
           <Link
-            to={folderId ? `${base}/new?folder=${encodeURIComponent(folderId)}` : `${base}/new`}
-            title={activeFolder ? `Tạo công văn trong thư mục "${activeFolder.name}"` : "Tạo công văn mới"}
+            to={
+              folderId
+                ? `${base}/new?folder=${encodeURIComponent(folderId)}`
+                : `${base}/new`
+            }
+            title={
+              activeFolder
+                ? `Tạo công văn trong thư mục "${activeFolder.name}"`
+                : "Tạo công văn mới"
+            }
           >
-            <Button variant="primary"
-            >
-              <Plus size={15} /> {activeFolder ? `Thêm mới vào "${activeFolder.name}"` : "Thêm mới công văn"}
+            <Button variant="primary">
+              <Plus size={15} />{" "}
+              {activeFolder
+                ? `Thêm mới vào "${activeFolder.name}"`
+                : "Thêm mới công văn"}
             </Button>
           </Link>
         </div>
@@ -382,9 +450,7 @@ export default function CorrespondenceList({
         {(filterCount > 0 || searchQuery) && (
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <span>{filterCount} bộ lọc đang dùng</span>
-            <LinkButton onClick={clearAll}>
-              Xóa bộ lọc
-            </LinkButton>
+            <LinkButton onClick={clearAll}>Xóa bộ lọc</LinkButton>
           </div>
         )}
       </Card>
@@ -392,7 +458,13 @@ export default function CorrespondenceList({
       <Card className="p-3">
         <div className="mb-2 flex items-center justify-between gap-2">
           <p className="text-sm font-semibold text-gray-800">Thư mục của tôi</p>
-          <Button size="sm" onClick={() => { setFolderParentId(null); setFolderCreateOpen(true); }}>
+          <Button
+            size="sm"
+            onClick={() => {
+              setFolderParentId(null);
+              setFolderCreateOpen(true);
+            }}
+          >
             <FolderPlus size={14} /> Tạo thư mục
           </Button>
         </div>
@@ -404,7 +476,17 @@ export default function CorrespondenceList({
           >
             Tất cả công văn
           </Button>
-          <FolderTree folders={folders} parentId={null} selectedId={folderId} onSelect={(id) => selectFolder(id)} onCreateChild={(id) => { setFolderParentId(id); setFolderCreateOpen(true); }} onDelete={(id) => deleteFolder.mutate(id)} />
+          <FolderTree
+            folders={folders}
+            parentId={null}
+            selectedId={folderId}
+            onSelect={(id) => selectFolder(id)}
+            onCreateChild={(id) => {
+              setFolderParentId(id);
+              setFolderCreateOpen(true);
+            }}
+            onDelete={(id) => deleteFolder.mutate(id)}
+          />
         </div>
       </Card>
 
@@ -528,20 +610,37 @@ export default function CorrespondenceList({
         open={folderCreateOpen}
         onClose={() => setFolderCreateOpen(false)}
         title={folderParentId ? "Tạo thư mục con" : "Tạo thư mục công văn"}
-        footer={<><Button onClick={() => setFolderCreateOpen(false)}>Hủy</Button><Button variant="primary" loading={createFolder.isPending} disabled={!folderName.trim()} onClick={() => createFolder.mutate()}>Tạo thư mục</Button></>}
+        footer={
+          <>
+            <Button onClick={() => setFolderCreateOpen(false)}>Hủy</Button>
+            <Button
+              variant="primary"
+              loading={createFolder.isPending}
+              disabled={!folderName.trim()}
+              onClick={() => createFolder.mutate()}
+            >
+              Tạo thư mục
+            </Button>
+          </>
+        }
       >
-        <label className="block text-sm font-medium text-gray-700" htmlFor="folder-name">Tên thư mục</label>
-        <input id="folder-name" autoFocus value={folderName} onChange={(e) => setFolderName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && folderName.trim()) createFolder.mutate(); }} className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-600" placeholder="Ví dụ: Hồ sơ dự án A" />
-      </Modal>
-
-      <Modal
-        open={moveDoc !== null}
-        onClose={() => setMoveDoc(null)}
-        title="Chuyển vào thư mục"
-        footer={<Button onClick={() => setMoveDoc(null)}>Hủy</Button>}
-      >
-        <p className="mb-3 text-sm text-gray-600">Chọn thư mục cho công văn “{moveDoc?.document_number}”.</p>
-        {folders.length === 0 ? <p className="text-sm text-gray-500">Hãy tạo thư mục trước.</p> : <div className="grid gap-2">{folders.map((folder) => <Button key={folder.id} className="justify-start" loading={moveToFolder.isPending} onClick={() => moveToFolder.mutate(folder.id)}><Folder size={15} /> {folder.name}</Button>)}</div>}
+        <label
+          className="block text-sm font-medium text-gray-700"
+          htmlFor="folder-name"
+        >
+          Tên thư mục
+        </label>
+        <input
+          id="folder-name"
+          autoFocus
+          value={folderName}
+          onChange={(e) => setFolderName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && folderName.trim()) createFolder.mutate();
+          }}
+          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-600"
+          placeholder="Ví dụ: Hồ sơ dự án A"
+        />
       </Modal>
 
       <ExcelImportModal

@@ -44,9 +44,10 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
       : h.header,
   );
   // Văn bản đi: dòng mẫu dùng luôn phòng ban đầu tiên trong danh mục.
+  // Mẫu ghi 2 nơi nhận cách nhau dấu phẩy để minh họa nhập nhiều nơi.
   const outgoingSample =
     direction === "OUTGOING" && deptNames.length > 0
-      ? deptNames[0]
+      ? deptNames.slice(0, 2).join(", ")
       : cfg.sampleParty;
   const sample: Record<string, unknown> = {
     "Số văn bản": "CV001/2026/VICENZA",
@@ -78,12 +79,16 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
   // Văn bản đi: cột Nơi nhận có dropdown từ danh mục phòng ban
   // (Cấu hình → Phòng ban). Danh mục nằm ở sheet phụ ẩn "DanhMuc".
   // Tắt popup báo lỗi để vẫn gõ tay được nhiều nơi cách nhau dấu phẩy.
+  // Excel .xlsx không chọn nhiều giá trị trong 1 dropdown được (cần macro
+  // VBA) nên gắn thêm ghi chú hướng dẫn ngay trên ô tiêu đề.
   if (direction === "OUTGOING" && deptNames.length > 0) {
     const ref = wb.addWorksheet("DanhMuc");
     ref.state = "hidden";
     ref.getColumn(1).values = ["Phòng ban", ...deptNames];
     const colIdx = headers.indexOf("Nơi nhận") + 1;
     const lastRow = deptNames.length + 1;
+    ws.getCell(1, colIdx).note =
+      "Chọn 1 nơi nhận từ dropdown. Nhiều nơi thì gõ thêm, cách nhau bằng dấu phẩy — VD: Kế toán, Nhân sự.";
     for (let r = 2; r <= 500; r++) {
       ws.getCell(r, colIdx).dataValidation = {
         type: "list",

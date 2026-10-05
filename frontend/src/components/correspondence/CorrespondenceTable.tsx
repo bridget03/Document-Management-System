@@ -1,6 +1,16 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, FolderInput, Pencil, Trash2, MoreHorizontal, Star } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Eye,
+  FolderInput,
+  Pencil,
+  Trash2,
+  MoreHorizontal,
+  Star,
+} from "lucide-react";
 import Badge from "../ui/Badge";
 import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
@@ -55,7 +65,11 @@ export default function CorrespondenceTable({
   const openDoc = items.find((i) => i.id === openId) ?? null;
   const sortableHeader = (label: string, key: CorrSortKey) => {
     const active = sortBy === key;
-    const Icon = active ? (sortOrder === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+    const Icon = active
+      ? sortOrder === "asc"
+        ? ArrowUp
+        : ArrowDown
+      : ArrowUpDown;
     return (
       <button
         type="button"
@@ -64,7 +78,11 @@ export default function CorrespondenceTable({
         aria-label={`Sắp xếp theo ${label}${active ? (sortOrder === "asc" ? ", tăng dần" : ", giảm dần") : ""}`}
       >
         {label}
-        <Icon size={14} aria-hidden="true" className={active ? "text-brand-700" : "text-gray-400"} />
+        <Icon
+          size={14}
+          aria-hidden="true"
+          className={active ? "text-brand-700" : "text-gray-400"}
+        />
       </button>
     );
   };
@@ -74,13 +92,90 @@ export default function CorrespondenceTable({
       <table className="w-full min-w-[860px] text-sm">
         <thead>
           <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
-            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "document_number" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Số văn bản", "document_number")}</th>
-            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "document_type" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Loại", "document_type")}</th>
-            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "party" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader(cfg.partyLabel.replace(" *", ""), "party")}</th>
-            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "signer" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Người ký", "signer")}</th>
-            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "signed_date" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Ngày ký", "signed_date")}</th>
-            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "issue_date" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Ngày phát hành", "issue_date")}</th>
-            <th className="px-4 py-2.5 font-medium" aria-sort={sortBy === "processing_status" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Tình trạng", "processing_status")}</th>
+            <th
+              className="px-4 py-2.5 font-medium"
+              aria-sort={
+                sortBy === "document_number"
+                  ? sortOrder === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              {sortableHeader("Số văn bản", "document_number")}
+            </th>
+            <th
+              className="px-4 py-2.5 font-medium"
+              aria-sort={
+                sortBy === "document_type"
+                  ? sortOrder === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              {sortableHeader("Loại", "document_type")}
+            </th>
+            <th
+              className="px-4 py-2.5 font-medium"
+              aria-sort={
+                sortBy === "party"
+                  ? sortOrder === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              {sortableHeader(cfg.partyLabel.replace(" *", ""), "party")}
+            </th>
+            <th
+              className="px-4 py-2.5 font-medium"
+              aria-sort={
+                sortBy === "signer"
+                  ? sortOrder === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              {sortableHeader("Người ký", "signer")}
+            </th>
+            <th
+              className="px-4 py-2.5 font-medium"
+              aria-sort={
+                sortBy === "signed_date"
+                  ? sortOrder === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              {sortableHeader("Ngày ký", "signed_date")}
+            </th>
+            <th
+              className="px-4 py-2.5 font-medium"
+              aria-sort={
+                sortBy === "issue_date"
+                  ? sortOrder === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              {sortableHeader("Ngày phát hành", "issue_date")}
+            </th>
+            <th
+              className="px-4 py-2.5 font-medium"
+              aria-sort={
+                sortBy === "processing_status"
+                  ? sortOrder === "asc"
+                    ? "ascending"
+                    : "descending"
+                  : "none"
+              }
+            >
+              {sortableHeader("Tình trạng", "processing_status")}
+            </th>
             <th className="px-4 py-2.5 text-right font-medium">Actions</th>
           </tr>
         </thead>
@@ -116,7 +211,10 @@ export default function CorrespondenceTable({
                     if (list.length === 0) return "—";
                     return (
                       <span className="flex flex-wrap items-center gap-1">
-                        <span className="max-w-[180px] truncate" title={list[0]}>
+                        <span
+                          className="max-w-[180px] truncate"
+                          title={list[0]}
+                        >
                           {list[0]}
                         </span>
                         {list.length > 1 && (
@@ -181,15 +279,7 @@ export default function CorrespondenceTable({
           >
             <Pencil size={14} /> Chỉnh sửa
           </Link>
-          <MenuItem
-            onClick={() => {
-              const doc = openDoc;
-              closeMenu();
-              onMoveToFolder(doc);
-            }}
-          >
-            <FolderInput size={14} /> Chuyển vào thư mục
-          </MenuItem>
+
           <MenuItem
             tone="danger"
             onClick={() => {
