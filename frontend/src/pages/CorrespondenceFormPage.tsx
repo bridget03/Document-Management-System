@@ -19,11 +19,11 @@ interface Props {
 function toPayload(v: CorrFormValue, direction: Direction, folderId?: string | null) {
   const num = (s: string) => (s.trim() === '' ? undefined : Number(s.trim()));
   const dt = (s: string) => (s.trim() === '' ? undefined : s.trim());
-  // Đi/Nội bộ: chuẩn hoá "A;; B ;  C" -> "A; B; C" (nhiều nơi).
+  // Đi/Nội bộ: chuẩn hoá "A,, B ;  C" -> "A; B; C" (nhiều nơi).
   // Đến: nơi gửi chỉ 1 -> trim giữ nguyên.
   const multiParty = (s: string) => {
     const list = s
-      .split(/[;\n]+/)
+      .split(/[;,\n]+/)
       .map((t) => t.trim())
       .filter(Boolean);
     return list.length > 0 ? list.join('; ') : undefined;

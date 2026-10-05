@@ -82,7 +82,7 @@ const empty: CorrFormValue = {
 /** Nhiều nơi nhận/nơi gửi lưu chung 1 chuỗi, phân cách bằng "; ". */
 export function splitParty(s: string): string[] {
   return (s || "")
-    .split(/[;\n]+/)
+    .split(/[;,\n]+/)
     .map((t) => t.trim())
     .filter(Boolean);
 }
@@ -165,9 +165,9 @@ export default function CorrespondenceForm({
 
   const addParty = (raw?: string) => {
     const src = raw !== undefined ? raw : partyInput;
-    // Cho phép paste "A; B; C" hoặc mỗi dòng 1 nơi nhận.
+    // Cho phép paste "A, B; C" hoặc mỗi dòng 1 nơi nhận.
     const parts = src
-      .split(/[;\n]+/)
+      .split(/[;,\n]+/)
       .map((t) => t.trim())
       .filter(Boolean);
     if (parts.length === 0) return;
@@ -199,7 +199,7 @@ export default function CorrespondenceForm({
   const addDept = (raw?: string) => {
     const src = raw !== undefined ? raw : deptInput;
     const parts = src
-      .split(/[;\n]+/)
+      .split(/[;,\n]+/)
       .map((t) => t.trim())
       .filter(Boolean);
     if (parts.length === 0) return;
@@ -293,7 +293,7 @@ export default function CorrespondenceForm({
     let normalized = { ...v };
     // Gộp tag phòng ban đang gõ dở (nếu quên Enter).
     const pendingDepts = deptInput
-      .split(/[;\n]+/)
+      .split(/[;,\n]+/)
       .map((t) => t.trim())
       .filter(Boolean);
     const mergeDepts = (base: string) => {
@@ -310,7 +310,7 @@ export default function CorrespondenceForm({
     if (allowMultiple) {
       // Gộp input nơi nhận đang gõ dở (nếu user quên Enter) rồi chuẩn hoá "; ".
       const pendingParts = partyInput
-        .split(/[;\n]+/)
+        .split(/[;,\n]+/)
         .map((t) => t.trim())
         .filter(Boolean);
       if (pendingParts.length > 0) {
@@ -468,7 +468,7 @@ export default function CorrespondenceForm({
                   value={partyInput}
                   onChange={(e) => setPartyInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === ";") {
+                    if (e.key === "Enter" || e.key === ";" || e.key === ",") {
                       e.preventDefault();
                       addParty();
                     } else if (
@@ -481,7 +481,7 @@ export default function CorrespondenceForm({
                   }}
                   onPaste={(e) => {
                     const text = e.clipboardData.getData("text");
-                    if (/[;\n]/.test(text)) {
+                    if (/[;,\n]/.test(text)) {
                       e.preventDefault();
                       addParty(text);
                     }
@@ -506,9 +506,9 @@ export default function CorrespondenceForm({
               </div>
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
-                  Có nhiều nơi nhận thì nhập từng nơi rồi Enter. Có thể paste
-                  danh sách cách nhau bằng dấu ; hoặc xuống dòng. Lưu trữ dạng
-                  “A; B; C”
+                  Có nhiều nơi nhận thì nhập từng nơi rồi Enter (hoặc gõ dấu
+                  phẩy). Có thể paste danh sách cách nhau bằng dấu phẩy, chấm
+                  phẩy hoặc xuống dòng. Lưu trữ dạng “A; B; C”
                   {partyList.length > 0 && ` — đã nhập ${partyList.length} nơi.`}
                 </p>
               </>
@@ -683,7 +683,7 @@ export default function CorrespondenceForm({
                     value={deptInput}
                     onChange={(e) => setDeptInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === ";") {
+                      if (e.key === "Enter" || e.key === ";" || e.key === ",") {
                         e.preventDefault();
                         addDept();
                       } else if (
@@ -696,7 +696,7 @@ export default function CorrespondenceForm({
                     }}
                     onPaste={(e) => {
                       const text = e.clipboardData.getData("text");
-                      if (/[;\n]/.test(text)) {
+                      if (/[;,\n]/.test(text)) {
                         e.preventDefault();
                         addDept(text);
                       }

@@ -212,8 +212,19 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
     return s.slice(0, 10);
   };
   out.document_number = str(byKey.document_number);
-  out.recipient = str(byKey.recipient);
-  out.sender = str(byKey.sender);
+  // Nơi nhận/nơi gửi/phòng ban: chấp nhận phẩy (,), chấm phẩy (;) hoặc
+  // xuống dòng, chuẩn hoá về dạng lưu trữ "A; B; C".
+  const multi = (v: unknown) => {
+    const s = str(v);
+    if (!s) return undefined;
+    const list = s
+      .split(/[;,\n]+/)
+      .map((t) => t.trim())
+      .filter(Boolean);
+    return list.length > 0 ? list.join('; ') : undefined;
+  };
+  out.recipient = multi(byKey.recipient);
+  out.sender = multi(byKey.sender);
   out.quantity = num(byKey.quantity);
   out.signer = str(byKey.signer);
   if (byKey.security_level !== undefined) {
@@ -254,10 +265,11 @@ export function validateRowClient(data: Record<string, unknown>, direction: Dire
   return errs;
 }
 
-/** Tách chuỗi nơi nhận/nơi gửi "A; B; C" thành list để hiển thị chip. */
+/** Tách chuỗi nơi nhận/nơi gửi "A, B; C" thành list để hiển thị chip. */
+/** Dấu phân tách: phẩy (,), chấm phẩy (;) hoặc xuống dòng. Lưu trữ dạng "A; B; C". */
 export function splitPartyList(s?: string | null): string[] {
   return (s || '')
-    .split(/[;\n]+/)
+    .split(/[;,\n]+/)
     .map((t) => t.trim())
     .filter(Boolean);
 }

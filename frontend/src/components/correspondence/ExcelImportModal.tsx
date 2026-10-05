@@ -258,6 +258,12 @@ export default function ExcelImportModal({
           <Button onClick={() => downloadTemplate(direction)}>
             <Download size={14} /> Tải file mẫu Excel
           </Button>
+          {direction !== "INCOMING" && (
+            <p className="text-xs text-gray-500">
+              Mẹo: ô {direction === "INTERNAL" ? "“Bộ phận/người nhận”" : "“Nơi nhận”"} ghi
+              nhiều nơi cách nhau bằng dấu phẩy — VD: Công ty A, Công ty B.
+            </p>
+          )}
         </div>
       )}
 
