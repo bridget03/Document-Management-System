@@ -16,6 +16,7 @@ import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
+import { useAuthStore } from "../stores/authStore";
 import CorrespondenceTree, { TREE_DIRECTIONS, type TreeSelection } from "../components/correspondence/tree/CorrespondenceTree";
 import CorrespondenceTable, { type CorrSortKey, type SortOrder } from "../components/correspondence/CorrespondenceTable";
 import IncomingTable from "../components/correspondence/IncomingTable";
@@ -130,6 +131,8 @@ export default function CorrespondenceExplorer({ fixedDirection = null }: { fixe
   const [moveDoc, setMoveDoc] = useState<CorrDoc | null>(null);
 
   const direction: Direction | null = fixedDirection ?? selection.direction;
+  // Member read-only: chỉ admin (phòng tổ chức) được tạo/import công văn.
+  const isAdmin = useAuthStore((s) => s.user?.role === "ADMIN");
   const apiDir = direction ? DIRECTION_CONFIG[direction].api : null;
   const base = direction ? API_BASE[direction] : "/correspondence/incoming";
   const dirLabel = direction ? DIRECTION_CONFIG[direction].short : "công văn";
@@ -341,10 +344,12 @@ export default function CorrespondenceExplorer({ fixedDirection = null }: { fixe
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => direction && setImportOpen(true)} disabled={!direction}>
-            <Upload size={15} /> Nhập từ Excel
-          </Button>
-          {direction && (
+          {isAdmin && (
+            <Button onClick={() => direction && setImportOpen(true)} disabled={!direction}>
+              <Upload size={15} /> Nhập từ Excel
+            </Button>
+          )}
+          {isAdmin && direction && (
             <Link
               to={folderId ? `${base}/new?folder=${encodeURIComponent(folderId)}` : `${base}/new`}
               title={activeFolder ? `Tạo công văn trong thư mục "${activeFolder.name}"` : "Tạo công văn mới"}

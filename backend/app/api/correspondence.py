@@ -4,7 +4,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_admin
-from app.core.permissions import can_delete_corr, can_edit_corr, can_view_corr, dept_match_filter, scope_corr_query
+from app.core.permissions import can_create_corr, can_delete_corr, can_edit_corr, can_view_corr, dept_match_filter, scope_corr_query
 from app.database.database import get_db
 from app.models.correspondence import (
     CorrespondenceDocument,
@@ -77,6 +77,11 @@ def _require_view(user: User, doc: CorrespondenceDocument) -> None:
 def _require_edit(user: User, doc: CorrespondenceDocument) -> None:
     if not can_edit_corr(user, doc):
         raise HTTPException(status_code=403, detail="Bạn không có quyền sửa văn bản này.")
+
+
+def _require_create(user: User, direction: str) -> None:
+    if not can_create_corr(user, direction):
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên (phòng tổ chức) được tạo công văn.")
 
 
 def _require_delete(user: User, doc: CorrespondenceDocument) -> None:
@@ -311,6 +316,7 @@ def move_documents_to_folder(folder_id: str, payload: FolderDocumentsIn, request
 # ---------- CRUD ----------
 
 def _create(direction: str, payload: CorrCreate, db: Session, user: User, request: Request | None = None):
+    _require_create(user, direction)
     folder = _get_personal_folder(db, user, direction, payload.folder_id) if payload.folder_id else None
     try:
         doc = svc.create_document(db, direction, payload.model_dump(), user.id)
@@ -481,6 +487,7 @@ def remove_link(direction: str, corr_id: str, link_id: str, request: Request,
 
 @router.post("/incoming/import", response_model=ImportResult)
 def import_incoming(payload: dict, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_create(user, "INCOMING")
     try:
         result = svc.import_rows(db, "INCOMING", payload.get("rows") or [], user.id)
     except ValueError as e:
@@ -492,6 +499,7 @@ def import_incoming(payload: dict, request: Request, db: Session = Depends(get_d
 
 @router.post("/outgoing/import", response_model=ImportResult)
 def import_outgoing(payload: dict, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_create(user, "OUTGOING")
     try:
         result = svc.import_rows(db, "OUTGOING", payload.get("rows") or [], user.id)
     except ValueError as e:
@@ -503,6 +511,7 @@ def import_outgoing(payload: dict, request: Request, db: Session = Depends(get_d
 
 @router.post("/internal/import", response_model=ImportResult)
 def import_internal(payload: dict, request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    _require_create(user, "INTERNAL")
     try:
         result = svc.import_rows(db, "INTERNAL", payload.get("rows") or [], user.id)
     except ValueError as e:

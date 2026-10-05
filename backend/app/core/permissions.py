@@ -122,8 +122,9 @@ def can_view_corr(user: User, doc=None) -> bool:
 
 
 def can_create_corr(user: User, direction: str) -> bool:
-    """Every authenticated user may create in any direction."""
-    return True
+    """Chi phong to chuc (ADMIN) duoc tao cong van den/di/noi bo.
+    Member chi duoc xem (read-only). Import Excel cung di qua rule nay."""
+    return is_admin(user)
 
 
 def can_edit_corr(user: User, doc) -> bool:

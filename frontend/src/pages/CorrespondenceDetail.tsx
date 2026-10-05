@@ -20,6 +20,7 @@ import { IconButton } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { useToast } from "../components/ui/Toast";
+import { useAuthStore } from "../stores/authStore";
 import { useState } from "react";
 import {
   STATUS_CONFIG,
@@ -64,6 +65,7 @@ export default function CorrespondenceDetail({
   const qc = useQueryClient();
   const { toast } = useToast();
   const [del, setDel] = useState(false);
+  const me = useAuthStore((s) => s.user);
 
   const { data, isLoading, isError, error } = useQuery<CorrDoc>({
     queryKey: ["corr-doc", id],
@@ -124,6 +126,10 @@ export default function CorrespondenceDetail({
     label: data.processing_status,
     tone: "neutral" as const,
   };
+  // Member read-only: chỉ admin hoặc chủ sở hữu (văn bản cũ) được sửa/xóa.
+  const canWrite =
+    me?.role === "ADMIN" ||
+    (data.created_by != null && data.created_by === me?.id);
   const partyLabel = DIRECTION_CONFIG[direction].partyLabel.replace(" *", "");
   const party = data[DIRECTION_CONFIG[direction].partyKey];
 
@@ -156,17 +162,21 @@ export default function CorrespondenceDetail({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Link to={`${base}/${data.id}/edit`}>
-            <Button>
-              <Pencil size={15} /> Chỉnh sửa
-            </Button>
-          </Link>
+          {canWrite && (
+            <Link to={`${base}/${data.id}/edit`}>
+              <Button>
+                <Pencil size={15} /> Chỉnh sửa
+              </Button>
+            </Link>
+          )}
           <Button onClick={downloadAll}>
             <Download size={15} /> Tải xuống
           </Button>
-          <Button onClick={() => setDel(true)}>
-            <Trash2 size={15} /> Xóa
-          </Button>
+          {canWrite && (
+            <Button onClick={() => setDel(true)}>
+              <Trash2 size={15} /> Xóa
+            </Button>
+          )}
         </div>
       </div>
 

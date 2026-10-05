@@ -35,6 +35,7 @@ import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
+import { useAuthStore } from "../stores/authStore";
 import CorrespondenceTable, {
   type CorrSortKey,
   type SortOrder,
@@ -157,6 +158,8 @@ export default function CorrespondenceList({
   const [moveDoc, setMoveDoc] = useState<CorrDoc | null>(null);
   const qc = useQueryClient();
   const { toast } = useToast();
+  // Member read-only: chỉ admin (phòng tổ chức) được tạo/import công văn.
+  const isAdmin = useAuthStore((s) => s.user?.role === "ADMIN");
 
   // Giữ ngữ cảnh thư mục trong URL (?folder=) để nút "Thêm mới công văn"
   // truyền sang trang tạo, và nút Quay lại / reload vẫn giữ đúng thư mục.
@@ -315,28 +318,32 @@ export default function CorrespondenceList({
           <p className="mt-0.5 text-sm text-gray-500">{subtitle}</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setImportOpen(true)}>
-            <Upload size={15} /> Nhập từ Excel
-          </Button>
-          <Link
-            to={
-              folderId
-                ? `${base}/new?folder=${encodeURIComponent(folderId)}`
-                : `${base}/new`
-            }
-            title={
-              activeFolder
-                ? `Tạo công văn trong thư mục "${activeFolder.name}"`
-                : "Tạo công văn mới"
-            }
-          >
-            <Button variant="primary">
-              <Plus size={15} />{" "}
-              {activeFolder
-                ? `Thêm mới vào "${activeFolder.name}"`
-                : "Thêm mới công văn"}
+          {isAdmin && (
+            <Button onClick={() => setImportOpen(true)}>
+              <Upload size={15} /> Nhập từ Excel
             </Button>
-          </Link>
+          )}
+          {isAdmin && (
+            <Link
+              to={
+                folderId
+                  ? `${base}/new?folder=${encodeURIComponent(folderId)}`
+                  : `${base}/new`
+              }
+              title={
+                activeFolder
+                  ? `Tạo công văn trong thư mục "${activeFolder.name}"`
+                  : "Tạo công văn mới"
+              }
+            >
+              <Button variant="primary">
+                <Plus size={15} />{" "}
+                {activeFolder
+                  ? `Thêm mới vào "${activeFolder.name}"`
+                  : "Thêm mới công văn"}
+              </Button>
+            </Link>
+          )}
         </div>
       </div>
 

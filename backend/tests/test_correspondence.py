@@ -197,7 +197,10 @@ def test_delete_permission_and_attachments_kept():
     c = get_client()
     ha, hs = login(c), login(c, "staff@test.com", "staff123")
     t = make_type(c, ha)
-    # upload a file then attach
+    # member read-only: staff cannot create (single + import) -> 403
+    assert c.post("/api/correspondence/outgoing", headers=hs, json=base_out(t["id"])).status_code == 403
+    assert c.post("/api/correspondence/outgoing/import", headers=hs, json={"rows": []}).status_code == 403
+    # upload a file then attach (admin creates)
     up = c.post("/api/documents/upload", headers=ha,
                 files={"file": ("a.txt", b"hello", "text/plain")}, data={"name": "a.txt"})
     assert up.status_code == 200
@@ -205,15 +208,13 @@ def test_delete_permission_and_attachments_kept():
     b = base_out(t["id"])
     b["attachment_ids"] = [did]
     b["links"] = [{"name": "Drive", "url": "https://drive.google.com/x"}]
-    r = c.post("/api/correspondence/outgoing", headers=hs, json=b)
+    r = c.post("/api/correspondence/outgoing", headers=ha, json=b)
     assert r.status_code == 200, r.text
     cid = r.json()["id"]
     assert len(r.json()["attachments"]) == 1 and len(r.json()["links"]) == 1
-    # admin cannot delete staff's? admin CAN; staff cannot delete admin's
-    r2 = c.post("/api/correspondence/outgoing", headers=ha, json={**base_out(t["id"]), "document_number": "CV009/2026"})
-    assert c.delete(f"/api/correspondence/outgoing/{r2.json()['id']}", headers=hs).status_code == 403
-    # staff deletes own -> physical file kept
-    assert c.delete(f"/api/correspondence/outgoing/{cid}", headers=hs).status_code == 200
+    # staff cannot delete admin's (403); admin deletes own -> physical file kept
+    assert c.delete(f"/api/correspondence/outgoing/{cid}", headers=hs).status_code == 403
+    assert c.delete(f"/api/correspondence/outgoing/{cid}", headers=ha).status_code == 200
     assert c.get(f"/api/documents/{did}/download", headers=ha).status_code == 200
 
 
@@ -254,8 +255,8 @@ def test_internal_crud_search_import():
 
 
 def test_phase_permissions_no_doc_or_dept_scoping():
-    """Phase rule: any authed user reads/creates everything; edit/delete = owner|ADMIN.
-    Document-level and department-level restrictions must NOT exist yet."""
+    """Phase rule: member read-only on correspondence (admin/owner writes);
+    types/numbering settings stay ADMIN-only."""
     from app.core.permissions import (
         can_create_corr, can_delete_corr, can_edit_corr,
         can_manage_corr_config, can_view_corr,
@@ -264,7 +265,6 @@ def test_phase_permissions_no_doc_or_dept_scoping():
     ha, hs = login(c), login(c, "staff@test.com", "staff123")
     t = make_type(c, ha)
     assert can_view_corr(object()) is True
-    assert can_create_corr(object(), "INTERNAL") is True
 
     class FakeUser:
         def __init__(self, role, uid):
@@ -274,6 +274,10 @@ def test_phase_permissions_no_doc_or_dept_scoping():
     assert can_manage_corr_config(FakeUser("ADMIN", "a")) is True
 
     admin, staff, other = FakeUser("ADMIN", "a"), FakeUser("USER", "u1"), FakeUser("USER", "u2")
+    # create correspondence: ADMIN only, member read-only
+    assert can_create_corr(admin, "INCOMING") is True
+    assert can_create_corr(admin, "OUTGOING") is True
+    assert can_create_corr(staff, "INTERNAL") is False
 
     class FakeDoc:
         created_by = "u1"
@@ -342,27 +346,35 @@ def test_corr_visibility_acl_and_attach_guard():
     assert c.get("/api/correspondence/outgoing", headers=hs).json()["total"] == 0
     # admin sees it
     assert c.get(f"/api/correspondence/outgoing/{priv_id}", headers=ha).status_code == 200
-    # staff cannot attach the private doc to their own record
+    # attach guard (service level): viewer without read right cannot attach.
+    # (Staff khong tao duoc cong van nua nen scenario nay test truc tiep service.)
+    from app.models.correspondence import CorrespondenceDocument as CD
     from app.models.document import Document
+    from app.services import correspondence_service as svc
     db = SessionLocal()
     db.add(Document(name="p.pdf", original_name="p.pdf", file_extension="pdf",
                     storage_type="LOCAL", source="LOCAL_UPLOAD", sync_status="NOT_SYNCED",
                     visibility="PRIVATE", uploaded_by=db.query(User).filter(User.email == "admin@test.com").first().id))
     db.commit()
     priv_doc = db.query(Document).filter(Document.name == "p.pdf").first()
+    staff_id = db.query(User).filter(User.email == "staff@test.com").first().id
+    target = db.query(CD).filter(CD.id == priv_id).first()
+    try:
+        svc.attach_documents(db, target, [priv_doc.id], viewer_id=staff_id)
+        db.rollback()
+        raise AssertionError("expected ValueError")
+    except ValueError as e:
+        db.rollback()
+        assert "quyền" in str(e)
     db.close()
-    body2 = base_out(t["id"])
-    body2.update({"document_number": "ST/1", "attachment_ids": [priv_doc.id]})
-    r = c.post("/api/correspondence/outgoing", headers=hs, json=body2)
-    assert r.status_code == 400 and "quyền" in r.text
     # DEPARTMENT visibility requires department
     body3 = base_out(t["id"])
     body3.update({"document_number": "ST/2", "visibility": "DEPARTMENT"})
-    r = c.post("/api/correspondence/outgoing", headers=hs, json=body3)
+    r = c.post("/api/correspondence/outgoing", headers=ha, json=body3)
     assert r.status_code == 400
     # invalid visibility
     body3.update({"document_number": "ST/3", "visibility": "GALAXY", "department": "Ke toan"})
-    r = c.post("/api/correspondence/outgoing", headers=hs, json=body3)
+    r = c.post("/api/correspondence/outgoing", headers=ha, json=body3)
     assert r.status_code == 400
 
 

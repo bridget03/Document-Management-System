@@ -123,8 +123,8 @@ export default function Router() {
         <Route path="/correspondence" element={<Guard><CorrespondenceExplorer /></Guard>} />
         <Route path="/correspondence/incoming" element={<Guard><CorrespondenceExplorer fixedDirection="INCOMING" /></Guard>} />
         <Route path="/correspondence/outgoing" element={<Guard><CorrespondenceExplorer fixedDirection="OUTGOING" /></Guard>} />
-        <Route path="/correspondence/incoming/new" element={<Guard><IncomingFormPage /></Guard>} />
-        <Route path="/correspondence/outgoing/new" element={<Guard><OutgoingFormPage /></Guard>} />
+        <Route path="/correspondence/incoming/new" element={<AdminGuard><IncomingFormPage /></AdminGuard>} />
+        <Route path="/correspondence/outgoing/new" element={<AdminGuard><OutgoingFormPage /></AdminGuard>} />
         <Route path="/correspondence/incoming/:id" element={<Guard><IncomingDetail /></Guard>} />
         <Route path="/correspondence/outgoing/:id" element={<Guard><OutgoingDetail /></Guard>} />
         <Route path="/correspondence/incoming/:id/edit" element={<Guard><IncomingFormPage /></Guard>} />
@@ -133,13 +133,13 @@ export default function Router() {
         <Route
           path="/correspondence/internal/new"
           element={
-            <Guard>
+            <AdminGuard>
               <CorrespondenceFormPage
                 direction="INTERNAL"
                 title="Thêm công văn nội bộ"
                 base="/correspondence/internal"
               />
-            </Guard>
+            </AdminGuard>
           }
         />
         <Route

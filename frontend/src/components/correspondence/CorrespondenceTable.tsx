@@ -14,6 +14,7 @@ import {
 import Badge from "../ui/Badge";
 import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
+import { useAuthStore } from "../../stores/authStore";
 import {
   STATUS_CONFIG,
   fmtDateVN,
@@ -56,6 +57,11 @@ export default function CorrespondenceTable({
 }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const me = useAuthStore((s) => s.user);
+  // Member read-only: chỉ admin hoặc chủ sở hữu (văn bản cũ) được sửa/xóa.
+  // "Chuyển vào thư mục" là sắp xếp cá nhân nên giữ cho mọi người.
+  const canWriteDoc = (d: CorrDoc) =>
+    me?.role === "ADMIN" || (d.created_by != null && d.created_by === me?.id);
   const cfg = DIRECTION_CONFIG[dir];
   const partyList = (d: CorrDoc) => splitPartyList(d[cfg.partyKey]);
   const closeMenu = useCallback(() => {
@@ -272,24 +278,28 @@ export default function CorrespondenceTable({
           >
             <Eye size={14} /> Chi tiết
           </Link>
-          <Link
-            to={`${base}/${openDoc.id}/edit`}
-            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
-            onClick={closeMenu}
-          >
-            <Pencil size={14} /> Chỉnh sửa
-          </Link>
+          {canWriteDoc(openDoc) && (
+            <Link
+              to={`${base}/${openDoc.id}/edit`}
+              className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              onClick={closeMenu}
+            >
+              <Pencil size={14} /> Chỉnh sửa
+            </Link>
+          )}
 
-          <MenuItem
-            tone="danger"
-            onClick={() => {
-              const doc = openDoc;
-              closeMenu();
-              onDelete(doc);
-            }}
-          >
-            <Trash2 size={14} /> Xóa
-          </MenuItem>
+          {canWriteDoc(openDoc) && (
+            <MenuItem
+              tone="danger"
+              onClick={() => {
+                const doc = openDoc;
+                closeMenu();
+                onDelete(doc);
+              }}
+            >
+              <Trash2 size={14} /> Xóa
+            </MenuItem>
+          )}
         </ActionMenu>
       )}
     </div>
