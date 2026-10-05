@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { Download, FileSpreadsheet, X } from "lucide-react";
 import Button from "../ui/Button";
 import { LinkButton } from "../ui/Button";
 import Modal from "../ui/Modal";
 import { useToast } from "../ui/Toast";
 import { corrImport, listDocTypes } from "../../services/correspondenceApi";
+import { listDepartments } from "../../services/departmentApi";
+import type { Department } from "../../types/department";
 import {
   EXCEL_HEADERS,
   normalizeExcelRow,
@@ -32,7 +35,7 @@ interface ParsedRow {
 
 const MAX_ROWS = 500;
 
-function downloadTemplate(direction: Direction) {
+function downloadTemplate(direction: Direction, deptNames: string[]) {
   const cfg = DIRECTION_CONFIG[direction];
   // Template nội bộ dùng cột "Bộ phận/người nhận" thay cho "Nơi nhận".
   const headers = EXCEL_HEADERS.map((h) =>
@@ -40,9 +43,14 @@ function downloadTemplate(direction: Direction) {
       ? "Bộ phận/người nhận"
       : h.header,
   );
+  // Văn bản đi: dòng mẫu dùng luôn phòng ban đầu tiên trong danh mục.
+  const outgoingSample =
+    direction === "OUTGOING" && deptNames.length > 0
+      ? deptNames[0]
+      : cfg.sampleParty;
   const sample: Record<string, unknown> = {
     "Số văn bản": "CV001/2026/VICENZA",
-    "Nơi nhận": direction === "INCOMING" ? undefined : cfg.sampleParty,
+    "Nơi nhận": direction === "INCOMING" ? undefined : outgoingSample,
     "Bộ phận/người nhận":
       direction === "INTERNAL" ? cfg.sampleParty : undefined,
     "Nơi gửi": direction === "INCOMING" ? cfg.sampleParty : undefined,
@@ -60,11 +68,43 @@ function downloadTemplate(direction: Direction) {
     "Ghi chú": "",
     "Liên kết tệp": "",
   };
-  const ws = XLSX.utils.json_to_sheet([sample], { header: headers });
-  ws["!cols"] = EXCEL_HEADERS.map(() => ({ wch: 22 }));
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "VanBan");
-  XLSX.writeFile(wb, DIRECTION_CONFIG[direction].templateFile);
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("VanBan");
+  ws.addRow(headers);
+  ws.addRow(headers.map((h) => sample[h] ?? null));
+  ws.columns = headers.map(() => ({ width: 22 }));
+  ws.getRow(1).font = { bold: true };
+
+  // Văn bản đi: cột Nơi nhận có dropdown từ danh mục phòng ban
+  // (Cấu hình → Phòng ban). Danh mục nằm ở sheet phụ ẩn "DanhMuc".
+  // Tắt popup báo lỗi để vẫn gõ tay được nhiều nơi cách nhau dấu phẩy.
+  if (direction === "OUTGOING" && deptNames.length > 0) {
+    const ref = wb.addWorksheet("DanhMuc");
+    ref.state = "hidden";
+    ref.getColumn(1).values = ["Phòng ban", ...deptNames];
+    const colIdx = headers.indexOf("Nơi nhận") + 1;
+    const lastRow = deptNames.length + 1;
+    for (let r = 2; r <= 500; r++) {
+      ws.getCell(r, colIdx).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        showErrorMessage: false,
+        formulae: [`DanhMuc!$A$2:$A$${lastRow}`],
+      };
+    }
+  }
+
+  return wb.xlsx.writeBuffer().then((buf) => {
+    const blob = new Blob([buf], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = DIRECTION_CONFIG[direction].templateFile;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 }
 
 export default function ExcelImportModal({
@@ -88,6 +128,11 @@ export default function ExcelImportModal({
   const { data: types } = useQuery<DocType[]>({
     queryKey: ["corr-types-active"],
     queryFn: () => listDocTypes(true),
+    enabled: open,
+  });
+  const { data: departments, refetch: refetchDepts } = useQuery<Department[]>({
+    queryKey: ["departments-active"],
+    queryFn: () => listDepartments(true),
     enabled: open,
   });
 
@@ -255,7 +300,22 @@ export default function ExcelImportModal({
               }}
             />
           </label>
-          <Button onClick={() => downloadTemplate(direction)}>
+          <Button
+            onClick={() => {
+              // Lấy danh mục mới nhất từ server ngay lúc bấm tải,
+              // đề phòng danh sách cache từ lúc mở modal đã cũ.
+              refetchDepts()
+                .then(({ data }) =>
+                  downloadTemplate(
+                    direction,
+                    (data || []).map((d) => d.name),
+                  ),
+                )
+                .catch(() =>
+                  toast("error", "Không tạo được file mẫu Excel."),
+                );
+            }}
+          >
             <Download size={14} /> Tải file mẫu Excel
           </Button>
           {direction !== "INCOMING" && (
