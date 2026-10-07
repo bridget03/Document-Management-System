@@ -48,8 +48,7 @@ export type SortOrder = "asc" | "desc";
 const COL_WIDTHS: Record<string, number> = {
   docNo: 150,
   type: 200,
-  party: 220,
-  signer: 160,
+  party: 240,
   signedDate: 130,
   issueDate: 130,
   status: 140,
@@ -109,14 +108,14 @@ export default function CorrespondenceTable({
   };
 
   return (
-    <div className="overflow-x-auto">
+    <div className="min-h-0 flex-1 overflow-auto">
       <table className="w-full table-fixed text-sm" style={{ minWidth }}>
         <colgroup>
           {COL_ORDER.map((k) => (
             <col key={k} style={{ width: widths[k] ?? COL_WIDTHS[k] }} />
           ))}
         </colgroup>
-        <thead>
+        <thead className="sticky top-0 z-10 bg-gray-50">
           <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
             <th
               className="relative px-4 py-2.5 font-medium"
@@ -156,19 +155,6 @@ export default function CorrespondenceTable({
             >
               {sortableHeader(cfg.partyLabel.replace(" *", ""), "party")}
               <ResizeHandle onResizeStart={onResizeStart("party")} onReset={() => resetColumn("party")} />
-            </th>
-            <th
-              className="relative px-4 py-2.5 font-medium"
-              aria-sort={
-                sortBy === "signer"
-                  ? sortOrder === "asc"
-                    ? "ascending"
-                    : "descending"
-                  : "none"
-              }
-            >
-              {sortableHeader(dir === "INCOMING" ? "Đơn vị tiếp nhận" : "Người ký", "signer")}
-              <ResizeHandle onResizeStart={onResizeStart("signer")} onReset={() => resetColumn("signer")} />
             </th>
             <th
               className="relative px-4 py-2.5 font-medium"
@@ -220,7 +206,7 @@ export default function CorrespondenceTable({
             };
             return (
               <tr key={d.id} className="transition-colors hover:bg-gray-50">
-                <td className="px-4 py-2.5">
+                <td className="px-4 py-3">
                   <span className="flex flex-wrap items-center gap-1.5">
                     <Link
                       to={`${base}/${d.id}`}
@@ -235,10 +221,10 @@ export default function CorrespondenceTable({
                     )}
                   </span>
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                   {d.doc_type ? `${d.doc_type.code} · ${d.doc_type.name}` : "—"}
                 </td>
-                <td className="px-4 py-2.5 text-gray-600">
+                <td className="px-4 py-3 text-gray-600">
                   {(() => {
                     const list = partyList(d);
                     if (list.length === 0) return "—";
@@ -262,19 +248,16 @@ export default function CorrespondenceTable({
                     );
                   })()}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
-                  {d.signer || "—"}
-                </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                   {fmtDateVN(d.signed_date)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                   {fmtDateVN(d.issue_date)}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5">
+                <td className="whitespace-nowrap px-4 py-3">
                   <Badge tone={st.tone}>{st.label}</Badge>
                 </td>
-                <td className="px-4 py-2.5 text-right">
+                <td className="px-4 py-3 text-right">
                   <IconButton
                     label={`Actions for ${d.document_number}`}
                     aria-expanded={openId === d.id}

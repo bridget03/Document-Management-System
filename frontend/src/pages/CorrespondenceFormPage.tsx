@@ -19,8 +19,8 @@ interface Props {
 function toPayload(v: CorrFormValue, direction: Direction) {
   const num = (s: string) => (s.trim() === '' ? undefined : Number(s.trim()));
   const dt = (s: string) => (s.trim() === '' ? undefined : s.trim());
-  // Đi/Nội bộ: chuẩn hoá "A,, B ;  C" -> "A; B; C" (nhiều nơi).
-  // Đến: nơi gửi chỉ 1 -> trim giữ nguyên.
+  // Đi: chuẩn hoá "A,, B ;  C" -> "A; B; C" (nhiều nơi).
+  // Đến/Nội bộ: 1 đơn vị -> trim giữ nguyên.
   const multiParty = (s: string) => {
     const list = s
       .split(/[;,\n]+/)
@@ -36,7 +36,7 @@ function toPayload(v: CorrFormValue, direction: Direction) {
     document_number: v.document_number.trim(),
     title: v.title.trim() || undefined,
     recipient:
-      direction === 'INCOMING' ? singleParty(v.recipient) : multiParty(v.recipient),
+      direction === 'OUTGOING' ? multiParty(v.recipient) : singleParty(v.recipient),
     sender:
       direction === 'INCOMING' ? singleParty(v.sender) : multiParty(v.sender),
     quantity: num(v.quantity),
@@ -48,6 +48,7 @@ function toPayload(v: CorrFormValue, direction: Direction) {
     effective_date: dt(v.effective_date),
     expiry_date: dt(v.expiry_date),
     issuing_department: v.issuing_department.trim() || undefined,
+    issuing_office: v.issuing_office.trim() || undefined,
     issue_date: dt(v.issue_date),
     document_type_id: v.document_type_id || undefined,
     processing_status: v.processing_status,

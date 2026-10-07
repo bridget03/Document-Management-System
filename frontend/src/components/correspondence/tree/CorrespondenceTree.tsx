@@ -61,7 +61,7 @@ export default function CorrespondenceTree({
       .reduce((s, i) => s + i.count, 0);
 
   return (
-    <div>
+    <div className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-2 px-1 pb-2">
         <FolderOpen size={16} className="shrink-0 text-brand-700" />
         <span className="text-sm font-semibold text-gray-900">{rootLabel}</span>
@@ -77,7 +77,7 @@ export default function CorrespondenceTree({
           className="w-full bg-transparent text-xs outline-none placeholder:text-gray-400"
         />
       </div>
-      <div role="tree" aria-label="Cây công văn theo năm" className="max-h-[480px] space-y-0.5 overflow-auto">
+      <div role="tree" aria-label="Cây công văn theo năm" className="min-h-0 flex-1 space-y-0.5 overflow-auto">
         {years.length === 0 && (
           <p className="px-2 py-3 text-xs text-gray-500">Chưa có công văn có ngày phát hành.</p>
         )}

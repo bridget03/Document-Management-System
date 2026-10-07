@@ -23,7 +23,6 @@ import { useToast } from "../components/ui/Toast";
 import { useAuthStore } from "../stores/authStore";
 import { useState } from "react";
 import {
-  STATUS_CONFIG,
   LEVEL_LABELS,
   fmtDateVN,
   splitPartyList,
@@ -107,8 +106,10 @@ export default function CorrespondenceDetail({
     );
   }
   if (isError || !data) {
-    const errDetail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
-    const msg = typeof errDetail === "string" ? errDetail : "Không tìm thấy văn bản";
+    const errDetail = (error as { response?: { data?: { detail?: unknown } } })
+      ?.response?.data?.detail;
+    const msg =
+      typeof errDetail === "string" ? errDetail : "Không tìm thấy văn bản";
     return (
       <Card className="mx-auto max-w-2xl px-6 py-10 text-center">
         <p className="font-semibold text-gray-900">{msg}</p>
@@ -122,10 +123,6 @@ export default function CorrespondenceDetail({
     );
   }
 
-  const st = STATUS_CONFIG[data.processing_status] || {
-    label: data.processing_status,
-    tone: "neutral" as const,
-  };
   // Member read-only: chỉ admin hoặc chủ sở hữu (văn bản cũ) được sửa/xóa.
   const canWrite =
     me?.role === "ADMIN" ||
@@ -148,7 +145,6 @@ export default function CorrespondenceDetail({
             <h1 className="text-xl font-bold text-gray-900">
               {data.document_number}
             </h1>
-            <Badge tone={st.tone}>{st.label}</Badge>
             {data.is_important && (
               <Badge tone="danger">
                 <Star size={11} aria-hidden="true" /> Quan trọng
@@ -193,9 +189,7 @@ export default function CorrespondenceDetail({
           </h2>
           <div className="mt-2 divide-y divide-gray-100">
             <InfoRow label="Số văn bản">{data.document_number}</InfoRow>
-            {(direction === "INCOMING" || data.title) && (
-              <InfoRow label="Tiêu đề công văn">{data.title || "—"}</InfoRow>
-            )}
+            <InfoRow label="Tiêu đề công văn">{data.title || "—"}</InfoRow>
             <InfoRow label="Loại văn bản">
               {data.doc_type
                 ? `${data.doc_type.code} · ${data.doc_type.name}`
@@ -219,17 +213,11 @@ export default function CorrespondenceDetail({
                 "—"
               )}
             </InfoRow>
-            {direction !== "INCOMING" && (
-              <InfoRow label="Số lượng">{data.quantity ?? "—"}</InfoRow>
+            {direction === "INCOMING" && (
+              <InfoRow label="Đơn vị tiếp nhận">{data.signer || "—"}</InfoRow>
             )}
-            <InfoRow label={direction === "INCOMING" ? "Đơn vị tiếp nhận" : "Người ký"}>
-              {data.signer || "—"}
-            </InfoRow>
             <InfoRow label="Mức độ bảo mật">
               {data.security_level ? LEVEL_LABELS[data.security_level] : "—"}
-            </InfoRow>
-            <InfoRow label="Mức độ khẩn cấp">
-              {data.urgency_level ? LEVEL_LABELS[data.urgency_level] : "—"}
             </InfoRow>
             {direction === "INCOMING" ? (
               <InfoRow label="Ngày tiếp nhận">
@@ -246,19 +234,24 @@ export default function CorrespondenceDetail({
             <InfoRow label="Ngày hết hiệu lực">
               {fmtDateVN(data.expiry_date)}
             </InfoRow>
-            {direction !== "INCOMING" && (
+            {direction === "INTERNAL" && (
               <InfoRow label="Bộ phận phát hành">
                 {data.issuing_department || "—"}
               </InfoRow>
             )}
+            {direction === "OUTGOING" && (
+              <>
+                <InfoRow label="Đơn vị phát hành">
+                  {data.issuing_department || "—"}
+                </InfoRow>
+                <InfoRow label="Phòng ban phát hành">
+                  {data.issuing_office || "—"}
+                </InfoRow>
+              </>
+            )}
             <InfoRow label="Ngày phát hành">
               {fmtDateVN(data.issue_date)}
             </InfoRow>
-            {direction !== "INCOMING" && (
-              <InfoRow label="Tình trạng xử lý">
-                <Badge tone={st.tone}>{st.label}</Badge>
-              </InfoRow>
-            )}
             <InfoRow label="Mức độ quan trọng">
               {data.is_important ? (
                 <Badge tone="danger">

@@ -1,14 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Files,
-  Inbox,
-  Send,
-  Building2,
-  ArrowRight,
-  Clock,
-} from "lucide-react";
+import { Files, Inbox, Send, Building2, ArrowRight, Clock } from "lucide-react";
 import { getDashboardStats } from "../services/dashboardApi";
 import { listDocuments } from "../services/documentApi";
 import { driveStatus } from "../services/googleDriveApi";
@@ -19,18 +12,20 @@ import Button from "../components/ui/Button";
 import EmptyState from "../components/ui/EmptyState";
 import { fileTypeLabel } from "../components/document-viewer/preview";
 import type { Document, Paginated } from "../types/document";
-import { ChartCard, ChartSkeleton, KpiCard } from "../components/dashboard/ChartCard";
-import DateFilter, { presetRange, type Preset, type Range } from "../components/dashboard/DateFilter";
+import {
+  ChartCard,
+  ChartSkeleton,
+  KpiCard,
+} from "../components/dashboard/ChartCard";
+import DateFilter, {
+  presetRange,
+  type Preset,
+  type Range,
+} from "../components/dashboard/DateFilter";
 import TrendChart from "../components/dashboard/TrendChart";
 import TopOrgsChart from "../components/dashboard/TopOrgsChart";
 import ExpiringSoon from "../components/dashboard/ExpiringSoon";
-import Donut from "../components/dashboard/Donut";
 import TypeBars from "../components/dashboard/TypeBars";
-import {
-  STATUS_COLORS,
-  LEVEL_COLORS,
-} from "../components/dashboard/chartTheme";
-import { STATUS_CONFIG, LEVEL_LABELS } from "../types/correspondence";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -39,10 +34,6 @@ function greeting(): string {
   if (h < 18) return "Good afternoon";
   return "Good evening";
 }
-
-const statusLabelMap = Object.fromEntries(
-  Object.entries(STATUS_CONFIG).map(([k, v]) => [k, v.label]),
-);
 
 export default function Dashboard() {
   const user = useAuthStore((s) => s.user);
@@ -79,11 +70,10 @@ export default function Dashboard() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">
-            Dashboard
-          </h1>
+          <h1 className="text-xl font-bold text-gray-900">Dashboard</h1>
           <p className="mt-0.5 text-sm text-gray-500">
-            {greeting()}, {user?.name || "there"} — tổng quan tài liệu và công văn.
+            {greeting()}, {user?.name || "there"} — tổng quan tài liệu và công
+            văn.
           </p>
         </div>
         <DateFilter
@@ -96,8 +86,12 @@ export default function Dashboard() {
 
       {failed ? (
         <Card className="px-6 py-10 text-center">
-          <p className="font-semibold text-gray-900">Không thể tải dữ liệu dashboard</p>
-          <p className="mt-1 text-sm text-gray-500">Vui lòng kiểm tra kết nối và thử lại.</p>
+          <p className="font-semibold text-gray-900">
+            Không thể tải dữ liệu dashboard
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            Vui lòng kiểm tra kết nối và thử lại.
+          </p>
           <Button size="sm" className="mt-3" onClick={() => statsQ.refetch()}>
             Thử lại
           </Button>
@@ -140,7 +134,10 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
             <div className="xl:col-span-2">
-              <ChartCard title="Xu hướng công văn" hint="Số văn bản tạo mới theo thời gian">
+              <ChartCard
+                title="Xu hướng công văn"
+                hint="Số văn bản tạo mới theo thời gian"
+              >
                 {loading ? (
                   <ChartSkeleton />
                 ) : (
@@ -161,54 +158,6 @@ export default function Dashboard() {
             </ChartCard>
           </div>
 
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <ChartCard title="Tình trạng xử lý">
-              {loading ? (
-                <ChartSkeleton />
-              ) : (
-                <Donut
-                  title="Tình trạng xử lý"
-                  data={(stats?.processing_status || []).map((s) => ({
-                    key: s.status,
-                    count: s.count,
-                  }))}
-                  colors={STATUS_COLORS}
-                  labelMap={statusLabelMap}
-                />
-              )}
-            </ChartCard>
-            <ChartCard title="Mức độ bảo mật">
-              {loading ? (
-                <ChartSkeleton />
-              ) : (
-                <Donut
-                  title="Mức độ bảo mật"
-                  data={(stats?.security_levels || []).map((s) => ({
-                    key: s.level,
-                    count: s.count,
-                  }))}
-                  colors={LEVEL_COLORS}
-                  labelMap={LEVEL_LABELS}
-                />
-              )}
-            </ChartCard>
-            <ChartCard title="Mức độ khẩn cấp">
-              {loading ? (
-                <ChartSkeleton />
-              ) : (
-                <Donut
-                  title="Mức độ khẩn cấp"
-                  data={(stats?.urgency_levels || []).map((s) => ({
-                    key: s.level,
-                    count: s.count,
-                  }))}
-                  colors={LEVEL_COLORS}
-                  labelMap={LEVEL_LABELS}
-                />
-              )}
-            </ChartCard>
-          </div>
-
           <ChartCard
             title="Loại văn bản"
             hint="Top loại theo số lượng"
@@ -221,7 +170,11 @@ export default function Dashboard() {
               </Link>
             }
           >
-            {loading ? <ChartSkeleton /> : <TypeBars data={stats?.document_types || []} />}
+            {loading ? (
+              <ChartSkeleton />
+            ) : (
+              <TypeBars data={stats?.document_types || []} />
+            )}
           </ChartCard>
         </>
       )}
@@ -230,7 +183,7 @@ export default function Dashboard() {
         <Card className="xl:col-span-2">
           <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3.5">
             <h2 className="text-sm font-semibold text-gray-900">
-              Recent documents
+              Thêm gần đây
             </h2>
             <Link
               to="/documents"
@@ -334,12 +287,17 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {!loading && !failed && (stats?.overview.incoming || 0) + (stats?.overview.outgoing || 0) + (stats?.overview.internal || 0) === 0 && (
-        <EmptyState
-          title="Chưa có dữ liệu công văn"
-          description="Thêm công văn đến/đi/nội bộ để xem biểu đồ thống kê."
-        />
-      )}
+      {!loading &&
+        !failed &&
+        (stats?.overview.incoming || 0) +
+          (stats?.overview.outgoing || 0) +
+          (stats?.overview.internal || 0) ===
+          0 && (
+          <EmptyState
+            title="Chưa có dữ liệu công văn"
+            description="Thêm công văn đến/đi/nội bộ để xem biểu đồ thống kê."
+          />
+        )}
     </div>
   );
 }

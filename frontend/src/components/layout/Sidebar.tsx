@@ -43,17 +43,6 @@ const groups: {
     ],
   },
   {
-    label: "Quản lý",
-    items: [
-      {
-        to: "/categories",
-        label: "Loại tài liệu",
-        icon: <FolderOpen size={17} />,
-      },
-      { to: "/tags", label: "Thẻ", icon: <Tags size={17} /> },
-    ],
-  },
-  {
     label: "Quản lý tài liệu",
     items: [
       { to: "/documents", label: "Tài liệu", icon: <Files size={17} /> },
@@ -65,7 +54,7 @@ const groups: {
       },
       {
         to: "/correspondence/outgoing",
-        label: "Công văn đi",
+        label: "Công văn đi (bên ngoài)",
         icon: <Send size={17} />,
       },
       {
@@ -76,7 +65,7 @@ const groups: {
     ],
   },
   {
-    label: "Cấu hình",
+    label: "Cấu hình Công văn",
     items: [
       {
         to: "/correspondence/types",
@@ -93,23 +82,37 @@ const groups: {
         label: "Đơn vị tiếp nhận",
         icon: <Landmark size={17} />,
       },
+    ],
+  },
+  {
+    label: "Cấu hình tài liệu",
+    items: [
+      {
+        to: "/categories",
+        label: "Loại tài liệu",
+        icon: <FolderOpen size={17} />,
+      },
+      { to: "/tags", label: "Thẻ", icon: <Tags size={17} /> },
+    ],
+  },
+  {
+    label: "Quản lý hệ thống",
+    adminOnly: true,
+    items: [
       {
         to: "/correspondence/settings",
         label: "Cấu hình công văn",
         icon: <Settings size={17} />,
-        adminOnly: true,
       },
       {
         to: "/users",
         label: "Người dùng",
         icon: <Users size={17} />,
-        adminOnly: true,
       },
       {
         to: "/audit",
         label: "Nhật ký hệ thống",
         icon: <ScrollText size={17} />,
-        adminOnly: true,
       },
     ],
   },

@@ -50,6 +50,7 @@ class CorrespondenceDocument(Base):
     effective_date = Column(Date, nullable=True)
     expiry_date = Column(Date, nullable=True)
     issuing_department = Column(String(255), nullable=True, index=True)
+    issuing_office = Column(String(255), nullable=True)
     issue_date = Column(Date, nullable=True, index=True)
     document_type_id = Column(String(36), ForeignKey("document_types.id"), nullable=True, index=True)
     processing_status = Column(String(30), nullable=False, default="DRAFT", index=True)

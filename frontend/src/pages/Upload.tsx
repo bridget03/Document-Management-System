@@ -59,7 +59,7 @@ export default function Upload() {
       <div>
         <h1 className="text-xl font-bold text-gray-900">Tải tài liệu lên</h1>
         <p className="mt-0.5 text-sm text-gray-500">
-          Add a file to your workspace with metadata.
+          Thêm một file vào không gian làm việc của bạn với thông tin mô tả.
         </p>
       </div>
       <Card className="p-5">
@@ -113,7 +113,7 @@ export default function Upload() {
 
           <Field label="Tên hiển thị">
             <TextInput
-              placeholder="Leave empty to use the file name"
+              placeholder="Hợp đồng 2026"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
@@ -124,7 +124,7 @@ export default function Upload() {
                 value={categoryId}
                 onChange={(e) => setCategoryId(e.target.value)}
               >
-                <option value="">Select category</option>
+                <option value="">Chọn loại</option>
                 {(cats || []).map((c: { id: string; name: string }) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -143,7 +143,7 @@ export default function Upload() {
           <Field label="Mô tả">
             <TextArea
               rows={3}
-              placeholder="What is this document about?"
+              placeholder="Mô tả nội dung tài liệu"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />

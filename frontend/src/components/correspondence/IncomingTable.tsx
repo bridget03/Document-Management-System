@@ -24,14 +24,14 @@ interface Props {
 /** Bảng công văn ĐẾN — cột: số, tiêu đề, loại (tên), đơn vị phát hành,
  *  đơn vị tiếp nhận, ngày phát hành, ngày tiếp nhận. Không có Tình trạng. */
 const COL_WIDTHS: Record<string, number> = {
-  docNo: 160,
-  title: 240,
-  type: 170,
-  issuer: 200,
-  receiver: 200,
-  issueDate: 130,
-  receivedDate: 140,
-  actions: 90,
+  docNo: 120,
+  title: 340,
+  type: 110,
+  issuer: 220,
+  receiver: 220,
+  issueDate: 120,
+  receivedDate: 120,
+  actions: 60,
 };
 const COL_ORDER = Object.keys(COL_WIDTHS);
 export default function IncomingTable({
@@ -75,14 +75,14 @@ export default function IncomingTable({
   };
 
   return (
-    <div className="overflow-x-auto">
+    <div className="min-h-0 flex-1 overflow-auto">
       <table className="w-full table-fixed text-sm" style={{ minWidth }}>
         <colgroup>
           {COL_ORDER.map((k) => (
             <col key={k} style={{ width: widths[k] ?? COL_WIDTHS[k] }} />
           ))}
         </colgroup>
-        <thead>
+        <thead className="sticky top-0 z-10 bg-gray-50">
           <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
             <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "document_number" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Số văn bản", "document_number")}<ResizeHandle onResizeStart={onResizeStart("docNo")} onReset={() => resetColumn("docNo")} /></th>
             <th className="relative px-4 py-2.5 font-medium">Tiêu đề<ResizeHandle onResizeStart={onResizeStart("title")} onReset={() => resetColumn("title")} /></th>
@@ -97,7 +97,7 @@ export default function IncomingTable({
         <tbody className="divide-y divide-gray-100">
           {items.map((d) => (
             <tr key={d.id} className="transition-colors hover:bg-gray-50">
-              <td className="whitespace-nowrap px-4 py-2.5">
+              <td className="whitespace-nowrap px-4 py-3">
                 <span className="flex flex-wrap items-center gap-1.5">
                   <Link
                     to={`${base}/${d.id}`}
@@ -112,7 +112,7 @@ export default function IncomingTable({
                   )}
                 </span>
               </td>
-              <td className="px-4 py-2.5 text-gray-600">
+              <td className="px-4 py-3 text-gray-600">
                 <span className="block truncate" title={d.title || undefined}>
                   {d.title || "—"}
                 </span>
@@ -120,12 +120,12 @@ export default function IncomingTable({
               <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
                 {d.doc_type ? d.doc_type.name : "—"}
               </td>
-              <td className="px-4 py-2.5 text-gray-600">
+              <td className="px-4 py-3 text-gray-600">
                 <span className="block truncate" title={d.sender || undefined}>
                   {d.sender || "—"}
                 </span>
               </td>
-              <td className="px-4 py-2.5 text-gray-600">
+              <td className="px-4 py-3 text-gray-600">
                 <span className="block truncate" title={d.signer || undefined}>
                   {d.signer || "—"}
                 </span>
@@ -136,7 +136,7 @@ export default function IncomingTable({
               <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
                 {fmtDateVN(d.received_date)}
               </td>
-              <td className="px-4 py-2.5 text-right">
+              <td className="px-4 py-3 text-right">
                 <IconButton
                   label={`Actions for ${d.document_number}`}
                   aria-expanded={openId === d.id}

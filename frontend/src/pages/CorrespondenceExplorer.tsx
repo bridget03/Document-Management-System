@@ -9,6 +9,8 @@ import {
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Menu,
   Plus,
   RefreshCw,
@@ -23,7 +25,7 @@ import {
   corrTreeStats,
   listDocTypes,
 } from "../services/correspondenceApi";
-import { Card, TableSkeleton } from "../components/ui/Skeleton";
+import { TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import Button, { IconButton, LinkButton } from "../components/ui/Button";
 import Badge from "../components/ui/Badge";
@@ -107,6 +109,24 @@ export default function CorrespondenceExplorer({
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [treeSearch, setTreeSearch] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // Thu gọn cây tài liệu (desktop). Nhớ lựa chọn trong localStorage.
+  const [treeCollapsed, setTreeCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("corr-tree-collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const toggleTreeCollapsed = () => {
+    setTreeCollapsed((c) => {
+      try {
+        localStorage.setItem("corr-tree-collapsed", c ? "0" : "1");
+      } catch {
+        /* bỏ qua */
+      }
+      return !c;
+    });
+  };
 
   // ---- Doc list state (reuse CorrespondenceList) ----
   const [searchInput, setSearchInput] = useState("");
@@ -130,14 +150,16 @@ export default function CorrespondenceExplorer({
   const dirLabel = direction ? DIRECTION_CONFIG[direction].short : "công văn";
 
   // ---- Tree stats (1 request, theo issue_date, tôn trọng scope) ----
+  // Công văn đến: bỏ lọc phạm vi, luôn xem tất cả.
+  const effScope = direction === "INCOMING" ? "all" : scope;
   const {
     data: treeData,
     isLoading: treeLoading,
     isError: treeError,
     refetch: refetchTree,
   } = useQuery({
-    queryKey: ["corr-tree", scope],
-    queryFn: () => corrTreeStats(scope),
+    queryKey: ["corr-tree", effScope],
+    queryFn: () => corrTreeStats(effScope),
   });
   const treeItems = treeData?.items ?? [];
   const visibleItems = fixedDirection
@@ -285,7 +307,7 @@ export default function CorrespondenceExplorer({
   const filterCount = [
     typeId,
     signer,
-    scope !== "all" ? scope : "",
+    effScope !== "all" ? effScope : "",
     importantOnly ? "important" : "",
     dateRange.from || dateRange.to ? "date" : "",
   ].filter(Boolean).length;
@@ -298,7 +320,7 @@ export default function CorrespondenceExplorer({
       searchQuery,
       typeId,
       signer,
-      scope,
+      effScope,
       sortBy,
       sortOrder,
       page,
@@ -311,7 +333,7 @@ export default function CorrespondenceExplorer({
         q: searchQuery || undefined,
         type_id: typeId || undefined,
         signer: signer || undefined,
-        scope: scope !== "all" ? scope : undefined,
+        scope: effScope !== "all" ? effScope : undefined,
         is_important: importantOnly ? true : undefined,
         date_from: effDateFrom,
         date_to: effDateTo,
@@ -377,24 +399,29 @@ export default function CorrespondenceExplorer({
       ].join(" / ");
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <span className="lg:hidden">
+    <div className="flex h-[calc(100dvh-112px)] min-h-[560px] flex-col gap-3">
+      {/* Page header gọn (~64px): tiêu đề + breadcrumb | actions */}
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 lg:hidden">
             <Button
               size="sm"
               onClick={() => setSidebarOpen((o) => !o)}
               aria-label="Mở cây công văn"
+              aria-expanded={sidebarOpen}
             >
               <Menu size={15} /> Cây
             </Button>
           </span>
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
-            <p className="mt-0.5 text-sm text-gray-500">{pageSubtitle}</p>
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-bold text-gray-900">{title}</h1>
+            <p className="truncate text-xs text-gray-500">
+              {breadcrumb}
+              {range ? ` · ${range.date_from} → ${range.date_to}` : ""}
+            </p>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex shrink-0 gap-2">
           {isAdmin && (
             <Button
               onClick={() => direction && setImportOpen(true)}
@@ -413,70 +440,100 @@ export default function CorrespondenceExplorer({
         </div>
       </div>
 
-      <div className="flex flex-col gap-4 lg:flex-row">
-        {/* Sidebar cây 280-320px */}
+      {/* Body: cây trái (240px, collapse được) + bảng fill phần còn lại */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
         <aside
-          className={`${sidebarOpen ? "block" : "hidden"} w-full shrink-0 lg:block lg:w-[300px]`}
+          aria-label="Cây công văn"
+          className={`${sidebarOpen ? "block" : "hidden"} w-full shrink-0 lg:block ${treeCollapsed ? "lg:w-11" : "lg:w-60"}`}
         >
-          <Card className="space-y-3 p-3">
-            {treeLoading ? (
-              <p className="px-2 py-3 text-xs text-gray-500">Đang tải cây...</p>
-            ) : treeError ? (
-              <div className="px-2 py-3 text-center">
-                <p className="text-xs font-medium text-gray-700">
-                  Không tải được cây.
-                </p>
-                <Button
-                  size="sm"
-                  className="mt-2"
-                  onClick={() => refetchTree()}
-                >
-                  Thử lại
-                </Button>
+          {treeCollapsed ? (
+            <div className="flex h-full flex-col items-center rounded-lg border border-gray-200 bg-white py-2">
+              <IconButton
+                label="Mở rộng cây công văn"
+                aria-expanded={false}
+                onClick={toggleTreeCollapsed}
+                title="Mở rộng cây công văn"
+              >
+                <ChevronsRight size={16} />
+              </IconButton>
+            </div>
+          ) : (
+            <div className="flex h-full min-h-0 flex-col gap-2 overflow-hidden rounded-lg border border-gray-200 bg-white p-2.5">
+              <div className="flex shrink-0 items-center justify-between gap-1">
+                <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+                  Cây công văn
+                </span>
+                <span className="hidden lg:inline-flex">
+                  <IconButton
+                    label="Thu gọn cây công văn"
+                    aria-expanded={true}
+                    onClick={toggleTreeCollapsed}
+                    title="Thu gọn cây công văn"
+                  >
+                    <ChevronsLeft size={15} />
+                  </IconButton>
+                </span>
               </div>
-            ) : (
-              <CorrespondenceTree
-                items={treeItems}
-                selection={selection}
-                expandedYears={expandedYears}
-                expandedTypes={expandedTypes}
-                treeSearch={treeSearch}
-                onTreeSearch={setTreeSearch}
-                onToggleYear={toggleYear}
-                onToggleType={toggleType}
-                onSelect={selectTree}
-                totalCount={totalCount}
-                onlyDirection={fixedDirection}
-                rootLabel={
-                  fixedDirection ? TYPE_LABEL[fixedDirection] : "Công văn"
-                }
-              />
-            )}
-          </Card>
+              <div className="min-h-0 flex-1">
+                {treeLoading ? (
+                  <p className="px-2 py-3 text-xs text-gray-500">
+                    Đang tải cây...
+                  </p>
+                ) : treeError ? (
+                  <div className="px-2 py-3 text-center">
+                    <p className="text-xs font-medium text-gray-700">
+                      Không tải được cây.
+                    </p>
+                    <Button
+                      size="sm"
+                      className="mt-2"
+                      onClick={() => refetchTree()}
+                    >
+                      Thử lại
+                    </Button>
+                  </div>
+                ) : (
+                  <CorrespondenceTree
+                    items={treeItems}
+                    selection={selection}
+                    expandedYears={expandedYears}
+                    expandedTypes={expandedTypes}
+                    treeSearch={treeSearch}
+                    onTreeSearch={setTreeSearch}
+                    onToggleYear={toggleYear}
+                    onToggleType={toggleType}
+                    onSelect={selectTree}
+                    totalCount={totalCount}
+                    onlyDirection={fixedDirection}
+                    rootLabel={
+                      fixedDirection ? TYPE_LABEL[fixedDirection] : "Công văn"
+                    }
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </aside>
 
-        {/* Content */}
-        <div className="min-w-0 flex-1 space-y-4">
-          <Card className="space-y-1 p-4">
-            <h2 className="text-base font-bold text-gray-900">{title}</h2>
-            <p className="text-xs text-gray-500">
-              {breadcrumb}
-              {range ? ` · ${range.date_from} → ${range.date_to}` : ""}
-            </p>
-          </Card>
-
+        {/* Table workspace: toolbar + bảng scroll độc lập + pagination đáy */}
+        <section
+          aria-label="Danh sách công văn"
+          className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
+        >
           {!direction || !range ? (
-            <Card className="px-6 py-10 text-center">
-              <p className="font-semibold text-gray-900">
-                {fixedDirection
-                  ? "Chọn năm / tháng trong cây"
-                  : "Chọn năm / loại / tháng trong cây"}
-              </p>
-              <p className="mt-1 text-sm text-gray-500">{pageSubtitle}</p>
-            </Card>
+            <div className="flex flex-1 items-center justify-center p-8 text-center">
+              <div>
+                <p className="font-semibold text-gray-900">
+                  {fixedDirection
+                    ? "Chọn năm / tháng trong cây"
+                    : "Chọn năm / loại / tháng trong cây"}
+                </p>
+                <p className="mt-1 text-sm text-gray-500">{pageSubtitle}</p>
+              </div>
+            </div>
           ) : (
             <>
-              <Card className="space-y-3 p-4">
+              <div className="shrink-0 space-y-2 border-b border-gray-200 p-3">
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 focus-within:border-brand-600">
                     <Search size={16} className="shrink-0 text-gray-400" />
@@ -508,20 +565,22 @@ export default function CorrespondenceExplorer({
                       </Badge>
                     )}
                   </Button>
-                  <Select
-                    value={scope}
-                    onChange={(e) => {
-                      setScope(e.target.value);
-                      setPage(1);
-                      qc.invalidateQueries({ queryKey: ["corr-tree"] });
-                    }}
-                    className="w-auto"
-                    aria-label="Phạm vi"
-                  >
-                    <option value="all">Tất cả</option>
-                    <option value="mine">Của tôi</option>
-                    <option value="department">Phòng tôi</option>
-                  </Select>
+                  {direction !== "INCOMING" && (
+                    <Select
+                      value={scope}
+                      onChange={(e) => {
+                        setScope(e.target.value);
+                        setPage(1);
+                        qc.invalidateQueries({ queryKey: ["corr-tree"] });
+                      }}
+                      className="w-auto"
+                      aria-label="Phạm vi"
+                    >
+                      <option value="all">Tất cả</option>
+                      <option value="mine">Của tôi</option>
+                      <option value="department">Phòng tôi</option>
+                    </Select>
+                  )}
                   <IconButton
                     label="Tải lại"
                     onClick={() => {
@@ -534,42 +593,44 @@ export default function CorrespondenceExplorer({
                 </div>
                 {showFilters && (
                   <>
-                    <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 sm:grid-cols-2">
-                      <Select
-                        value={typeId}
-                        onChange={(e) => {
-                          setTypeId(e.target.value);
-                          setPage(1);
-                        }}
-                        aria-label="Lọc loại văn bản"
-                      >
-                        <option value="">Tất cả loại</option>
-                        {(types || []).map(
-                          (t: { id: string; code: string; name: string }) => (
-                            <option key={t.id} value={t.id}>
-                              {t.code} · {t.name}
-                            </option>
-                          ),
-                        )}
-                      </Select>
-                      <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2">
-                        <Search size={14} className="shrink-0 text-gray-400" />
-                        <input
-                          className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-                          placeholder={
-                            direction === "INCOMING"
-                              ? "Đơn vị tiếp nhận..."
-                              : "Người ký..."
-                          }
-                          aria-label="Lọc người ký"
-                          value={signer}
+                      <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 sm:grid-cols-2">
+                        <Select
+                          value={typeId}
                           onChange={(e) => {
-                            setSigner(e.target.value);
+                            setTypeId(e.target.value);
                             setPage(1);
                           }}
-                        />
+                          aria-label="Lọc loại văn bản"
+                        >
+                          <option value="">Tất cả loại</option>
+                          {(types || []).map(
+                            (t: { id: string; code: string; name: string }) => (
+                              <option key={t.id} value={t.id}>
+                                {t.code} · {t.name}
+                              </option>
+                            ),
+                          )}
+                        </Select>
+                        {direction === "INCOMING" && (
+                          <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2">
+                            <Search size={14} className="shrink-0 text-gray-400" />
+                            <input
+                              className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                              placeholder={
+                                direction === "INCOMING"
+                                  ? "Đơn vị tiếp nhận..."
+                                  : "Người ký..."
+                              }
+                              aria-label="Lọc người ký"
+                              value={signer}
+                              onChange={(e) => {
+                                setSigner(e.target.value);
+                                setPage(1);
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
-                    </div>
                     <div className="border-t border-gray-100 pt-3">
                       <p className="mb-1.5 text-xs font-medium text-gray-500">
                         Lọc theo ngày phát hành
@@ -605,20 +666,24 @@ export default function CorrespondenceExplorer({
                     <LinkButton onClick={clearAll}>Xóa bộ lọc</LinkButton>
                   </div>
                 )}
-              </Card>
+              </div>
 
+              <div className="flex min-h-0 flex-1 flex-col">
               {isError ? (
-                <Card className="px-6 py-10 text-center">
+                <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
                   <p className="font-semibold text-gray-900">
                     Không tải được danh sách
                   </p>
-                  <Button size="sm" className="mt-3" onClick={() => refetch()}>
+                  <Button size="sm" onClick={() => refetch()}>
                     Thử lại
                   </Button>
-                </Card>
+                </div>
               ) : isLoading && !data ? (
-                <TableSkeleton rows={6} cols={6} />
+                <div className="flex-1 overflow-auto p-4">
+                  <TableSkeleton rows={12} cols={6} />
+                </div>
               ) : (data?.items.length || 0) === 0 && !isFetching ? (
+                <div className="flex flex-1 items-center justify-center overflow-auto p-6">
                 <EmptyState
                   title={
                     searchQuery || filterCount > 0
@@ -641,10 +706,11 @@ export default function CorrespondenceExplorer({
                     searchQuery || filterCount > 0 ? clearAll : undefined
                   }
                 />
+                </div>
               ) : (
-                <Card className="overflow-hidden">
+                <>
                   {isFetching && (
-                    <p className="border-b border-gray-100 px-4 py-1.5 text-xs text-gray-400">
+                    <p className="shrink-0 border-b border-gray-100 px-4 py-1 text-xs text-gray-400">
                       Đang cập nhật…
                     </p>
                   )}
@@ -677,7 +743,7 @@ export default function CorrespondenceExplorer({
                       onSort={handleSort}
                     />
                   )}
-                  <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2.5 text-sm">
+                  <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-4 py-2 text-sm">
                     <span className="text-gray-500">
                       Trang {data?.page} / {data?.total_pages} · {data?.total}{" "}
                       văn bản
@@ -701,11 +767,12 @@ export default function CorrespondenceExplorer({
                       </Button>
                     </span>
                   </div>
-                </Card>
+                </>
               )}
+              </div>
             </>
           )}
-        </div>
+        </section>
       </div>
 
       <Modal

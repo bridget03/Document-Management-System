@@ -37,7 +37,6 @@ import IncomingTable from "../components/correspondence/IncomingTable";
 import OutgoingTable from "../components/correspondence/OutgoingTable";
 import ExcelImportModal from "../components/correspondence/ExcelImportModal";
 import {
-  STATUS_OPTIONS,
   DIRECTION_CONFIG,
   type CorrDoc,
   type Direction,
@@ -65,7 +64,6 @@ export default function CorrespondenceList({
   const [searchQuery, setSearchQuery] = useState("");
   const [typeId, setTypeId] = useState("");
   const [signer, setSigner] = useState("");
-  const [status, setStatus] = useState("");
   const [importantOnly, setImportantOnly] = useState(false);
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -95,7 +93,6 @@ export default function CorrespondenceList({
   const filterCount = [
     typeId,
     signer,
-    status,
     scope !== "all" ? scope : "",
     importantOnly ? "important" : "",
   ].filter(Boolean).length;
@@ -106,7 +103,6 @@ export default function CorrespondenceList({
       searchQuery,
       typeId,
       signer,
-      status,
       scope,
       sortBy,
       sortOrder,
@@ -118,7 +114,6 @@ export default function CorrespondenceList({
         q: searchQuery || undefined,
         type_id: typeId || undefined,
         signer: signer || undefined,
-        status: status || undefined,
         scope: scope !== "all" ? scope : undefined,
         is_important: importantOnly ? true : undefined,
         sort_by: sortBy,
@@ -143,7 +138,6 @@ export default function CorrespondenceList({
     setSearchInput("");
     setTypeId("");
     setSigner("");
-    setStatus("");
     setImportantOnly(false);
     setScope("all");
     setPage(1);
@@ -229,7 +223,7 @@ export default function CorrespondenceList({
           </Select>
         </div>
         {showFilters && (
-          <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 sm:grid-cols-2">
             <Select
               value={typeId}
               onChange={(e) => {
@@ -247,38 +241,21 @@ export default function CorrespondenceList({
                 ),
               )}
             </Select>
-            <Select
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-              aria-label="Lọc tình trạng"
-            >
-              <option value="">Tất cả tình trạng</option>
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </Select>
-            <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2">
-              <Search size={14} className="shrink-0 text-gray-400" />
-              <input
-                className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-                placeholder={
-                  direction === "INCOMING"
-                    ? "Đơn vị tiếp nhận..."
-                    : "Người ký..."
-                }
-                aria-label="Lọc người ký"
-                value={signer}
-                onChange={(e) => {
-                  setSigner(e.target.value);
-                  setPage(1);
-                }}
-              />
-            </div>
+            {direction === "INCOMING" && (
+              <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2">
+                <Search size={14} className="shrink-0 text-gray-400" />
+                <input
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                  placeholder="Đơn vị tiếp nhận..."
+                  aria-label="Lọc đơn vị tiếp nhận"
+                  value={signer}
+                  onChange={(e) => {
+                    setSigner(e.target.value);
+                    setPage(1);
+                  }}
+                />
+              </div>
+            )}
           </div>
         )}
         <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-medium text-red-700">

@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Plus, X, Link2, FileUp, Wand2 } from "lucide-react";
+import { Plus, X, Link2, FileUp } from "lucide-react";
 import Button from "../ui/Button";
 import { IconButton, LinkButton } from "../ui/Button";
 import { TextInput, TextArea, Select, Field } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { uploadDocument } from "../../services/documentApi";
-import { listDocTypes, nextNumber } from "../../services/correspondenceApi";
+import { listDocTypes } from "../../services/correspondenceApi";
 import { listDepartments } from "../../services/departmentApi";
 import type { Department } from "../../types/department";
 import { listReceivingUnits } from "../../services/receivingUnitApi";
@@ -16,7 +16,7 @@ import {
   LEVEL_OPTIONS,
   SECURITY_OPTIONS,
   HIGH_SECURITY_DEPARTMENTS,
-  STATUS_OPTIONS,
+  OUTGOING_HIGH_SECURITY_BASE,
   DIRECTION_CONFIG,
   VISIBILITY_OPTIONS,
   ISSUING_DEPARTMENT_OPTIONS,
@@ -40,6 +40,7 @@ export interface CorrFormValue {
   effective_date: string;
   expiry_date: string;
   issuing_department: string;
+  issuing_office: string;
   issue_date: string;
   document_type_id: string;
   processing_status: string;
@@ -77,6 +78,7 @@ const empty: CorrFormValue = {
   effective_date: "",
   expiry_date: "",
   issuing_department: "",
+  issuing_office: "",
   issue_date: "",
   document_type_id: "",
   processing_status: "DRAFT",
@@ -116,6 +118,7 @@ function toValue(d: CorrDoc): CorrFormValue {
     effective_date: d.effective_date || "",
     expiry_date: d.expiry_date || "",
     issuing_department: d.issuing_department || "",
+    issuing_office: d.issuing_office || "",
     issue_date: d.issue_date || "",
     document_type_id: d.document_type_id || "",
     processing_status: d.processing_status,
@@ -173,28 +176,39 @@ export default function CorrespondenceForm({
   const set = (k: keyof CorrFormValue, val: string) =>
     setV((p) => ({ ...p, [k]: val }));
 
-  // Chọn bảo mật Cao => tự đặt phạm vi DEPARTMENT + 8 phòng ban mặc định
-  // (user vẫn sửa được ở phần Chia sẻ sau đó).
+  // Chọn bảo mật Cao => tự đặt phạm vi DEPARTMENT + danh sách mặc định
+  // (đi: phòng ban phát hành + 4 đơn vị; còn lại: 8 phòng ban).
+  // User vẫn sửa được ở phần Chia sẻ sau đó.
   const onSecurityChange = (val: string) =>
-    setV((p) =>
-      val === "HIGH"
-        ? {
-            ...p,
-            security_level: val,
-            visibility: "DEPARTMENT",
-            department: joinDeptList(HIGH_SECURITY_DEPARTMENTS),
-          }
-        : { ...p, security_level: val },
-    );
+    setV((p) => {
+      if (val !== "HIGH") return { ...p, security_level: val };
+      const base =
+        isOutgoing && p.issuing_office.trim()
+          ? [p.issuing_office.trim(), ...OUTGOING_HIGH_SECURITY_BASE]
+          : isOutgoing
+            ? [...OUTGOING_HIGH_SECURITY_BASE]
+            : [...HIGH_SECURITY_DEPARTMENTS];
+      return {
+        ...p,
+        security_level: val,
+        visibility: "DEPARTMENT",
+        department: joinDeptList(base),
+      };
+    });
 
   const partyLabel = DIRECTION_CONFIG[direction].partyLabel;
   const partyKey = DIRECTION_CONFIG[direction].partyKey;
   // Riêng công văn đến: form rút gọn (nhập tay số văn bản, không số lượng /
   // bộ phận phát hành / tình trạng xử lý, thêm tiêu đề + ngày tiếp nhận).
+  // Riêng công văn đi (ngoài): nhập tay số văn bản, không người ký / số lượng /
+  // mức khẩn cấp / tình trạng xử lý, thêm tiêu đề + phòng ban phát hành.
   const isIncoming = direction === "INCOMING";
+  const isOutgoing = direction === "OUTGOING";
   const signerLabel = isIncoming ? "Đơn vị tiếp nhận *" : "Người ký *";
-  // Công văn đến: chỉ 1 đơn vị phát hành -> ô text đơn. Đi/Nội bộ: nhiều nơi -> chip tag.
-  const allowMultiple = multipleParty ?? direction !== "INCOMING";
+  // Công văn đến: chỉ 1 đơn vị phát hành -> ô text đơn.
+  // Công văn nội bộ: chọn 1 đơn vị từ dropdown phòng ban.
+  // Đi: nhiều nơi -> chip tag.
+  const allowMultiple = multipleParty ?? (direction !== "INCOMING" && direction !== "INTERNAL");
   const partyList = allowMultiple ? splitParty(v[partyKey]) : [];
 
   const addParty = (raw?: string) => {
@@ -268,6 +282,22 @@ export default function CorrespondenceForm({
       ? [...unitNames, v.signer]
       : unitNames;
 
+  // Dropdown "Bộ phận phát hành" (văn bản nội bộ): chọn tên công ty,
+  // giữ giá trị cũ nếu không còn trong danh sách.
+  const companyOptions =
+    v.issuing_department &&
+    !ISSUING_DEPARTMENT_OPTIONS.includes(v.issuing_department)
+      ? [...ISSUING_DEPARTMENT_OPTIONS, v.issuing_department]
+      : [...ISSUING_DEPARTMENT_OPTIONS];
+  // Dropdown "Phòng ban phát hành" (văn bản đi) dùng danh mục phòng ban.
+  const officeOptions = (deptOptions || []).map((d) => d.name);
+  // Dropdown đơn vị nhận (văn bản nội bộ), giữ giá trị cũ nếu không còn
+  // trong danh mục để không mất dữ liệu khi sửa.
+  const internalRecipientOptions =
+    v.recipient && !officeOptions.includes(v.recipient)
+      ? [...officeOptions, v.recipient]
+      : officeOptions;
+
   // Phòng ban đã khai báo (Cấu hình → Phòng ban) chưa được chọn.
   const deptAdded = new Set(deptList.map((s) => s.toLowerCase()));
   const deptSuggestions = (deptOptions || [])
@@ -281,15 +311,6 @@ export default function CorrespondenceForm({
         !p.signer && t?.default_signer ? t.default_signer : p.signer;
       return { ...p, document_type_id: id, signer };
     });
-  };
-
-  const autoNumber = async () => {
-    try {
-      const r = await nextNumber(direction);
-      set("document_number", r.next_number);
-    } catch {
-      toast("error", "Không lấy được số tiếp theo.");
-    }
   };
 
   const addFiles = async (files: FileList | null) => {
@@ -394,32 +415,30 @@ export default function CorrespondenceForm({
         department: joinParty(splitParty(normalized.department)),
       };
     }
+    // Văn bản nội bộ không có Riêng tư: ép về Toàn công ty nếu còn sót.
+    if (direction === "INTERNAL" && normalized.visibility === "PRIVATE") {
+      normalized = { ...normalized, visibility: "ORGANIZATION" };
+    }
     const errs: string[] = [];
     if (!normalized.document_number.trim())
       errs.push("Số văn bản không được để trống.");
     if (direction !== "INCOMING" && !normalized.recipient.trim())
       errs.push(
         direction === "INTERNAL"
-          ? "Bộ phận/người nhận không được để trống."
+          ? "Vui lòng chọn đơn vị nhận."
           : "Nơi nhận không được để trống."
       );
     if (direction === "INCOMING" && !normalized.sender.trim())
       errs.push("Đơn vị phát hành không được để trống.");
-    if (!normalized.signer.trim())
-      errs.push(
-        isIncoming
-          ? "Vui lòng nhập đơn vị tiếp nhận."
-          : "Vui lòng chọn/nhập người ký.",
-      );
+    if (isIncoming && !normalized.signer.trim())
+      errs.push("Vui lòng nhập đơn vị tiếp nhận.");
     if (!normalized.document_type_id) errs.push("Vui lòng chọn loại văn bản.");
     if (!isIncoming && !normalized.issuing_department.trim())
-      errs.push("Vui lòng nhập bộ phận phát hành.");
-    if (
-      normalized.quantity.trim() &&
-      (!/^\d+$/.test(normalized.quantity.trim()) ||
-        Number(normalized.quantity) < 0)
-    )
-      errs.push("Số lượng phải là số nguyên >= 0.");
+      errs.push(
+        isOutgoing
+          ? "Vui lòng nhập đơn vị phát hành."
+          : "Vui lòng nhập bộ phận phát hành.",
+      );
     if (
       normalized.effective_date &&
       normalized.expiry_date &&
@@ -469,34 +488,33 @@ export default function CorrespondenceForm({
         </h2>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Số văn bản *">
-            <div className="flex gap-2">
-              <TextInput
-                value={v.document_number}
-                onChange={(e) => set("document_number", e.target.value)}
-                placeholder="CV001/2026/VICENZA"
-              />
-              {!isIncoming && (
-                <Button
-                  size="sm"
-                  onClick={autoNumber}
-                  title="Tự sinh số tiếp theo"
-                >
-                  <Wand2 size={14} /> Số mới
-                </Button>
-              )}
-            </div>
+            <TextInput
+              value={v.document_number}
+              onChange={(e) => set("document_number", e.target.value)}
+              placeholder="CV001/2026/VICENZA"
+            />
           </Field>
-          {isIncoming && (
-            <Field label="Tiêu đề công văn">
-              <TextInput
-                value={v.title}
-                onChange={(e) => set("title", e.target.value)}
-                placeholder="VD: V/v nghỉ lễ Quốc khánh"
-              />
-            </Field>
-          )}
+          <Field label="Tiêu đề công văn">
+            <TextInput
+              value={v.title}
+              onChange={(e) => set("title", e.target.value)}
+              placeholder="VD: V/v nghỉ lễ Quốc khánh"
+            />
+          </Field>
           <Field label={partyLabel}>
-            {allowMultiple ? (
+            {direction === "INTERNAL" ? (
+              <Select
+                value={v.recipient}
+                onChange={(e) => set("recipient", e.target.value)}
+              >
+                <option value="">— Chọn đơn vị nhận —</option>
+                {internalRecipientOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            ) : allowMultiple ? (
               <>
                 <div className="rounded-md border border-gray-300 px-2 py-1.5 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">
               {partyList.length > 0 && (
@@ -544,13 +562,7 @@ export default function CorrespondenceForm({
                       addParty(text);
                     }
                   }}
-                  placeholder={
-                    direction === "INCOMING"
-                      ? "Nhập nơi gửi rồi Enter — VD: Sở XYZ"
-                      : direction === "INTERNAL"
-                        ? "Nhập từng bộ phận/người nhận rồi Enter"
-                        : "Nhập từng nơi nhận rồi Enter — VD: Công ty ABC"
-                  }
+                  placeholder="Nhập từng nơi nhận rồi Enter — VD: Công ty ABC"
                   className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
                 />
                 <button
@@ -578,37 +590,29 @@ export default function CorrespondenceForm({
               />
             )}
           </Field>
-          {!isIncoming && (
-            <Field label="Số lượng văn bản">
-              <TextInput
-                inputMode="numeric"
-                value={v.quantity}
-                onChange={(e) => set("quantity", e.target.value)}
-                placeholder="1"
-              />
+          {isIncoming && (
+            <Field label={signerLabel}>
+              {isIncoming ? (
+                <Select
+                  value={v.signer}
+                  onChange={(e) => set("signer", e.target.value)}
+                >
+                  <option value="">— Chọn đơn vị tiếp nhận —</option>
+                  {signerOptions.map((name) => (
+                    <option key={name} value={name}>
+                      {name}
+                    </option>
+                  ))}
+                </Select>
+              ) : (
+                <TextInput
+                  value={v.signer}
+                  onChange={(e) => set("signer", e.target.value)}
+                  placeholder="Nguyễn Văn A"
+                />
+              )}
             </Field>
           )}
-          <Field label={signerLabel}>
-            {isIncoming ? (
-              <Select
-                value={v.signer}
-                onChange={(e) => set("signer", e.target.value)}
-              >
-                <option value="">— Chọn đơn vị tiếp nhận —</option>
-                {signerOptions.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <TextInput
-                value={v.signer}
-                onChange={(e) => set("signer", e.target.value)}
-                placeholder="Nguyễn Văn A"
-              />
-            )}
-          </Field>
           <Field label="Loại văn bản *">
             <Select
               value={v.document_type_id}
@@ -622,26 +626,50 @@ export default function CorrespondenceForm({
               ))}
             </Select>
           </Field>
-          {!isIncoming && (
+          {!isIncoming && !isOutgoing && (
             <Field label="Bộ phận phát hành *">
+              <Select
+                value={v.issuing_department}
+                onChange={(e) => set("issuing_department", e.target.value)}
+              >
+                <option value="">— Chọn công ty —</option>
+                {companyOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          )}
+          {isOutgoing && (
+            <Field label="Đơn vị phát hành *">
               <TextInput
                 value={v.issuing_department}
                 onChange={(e) => set("issuing_department", e.target.value)}
-                placeholder={
-                  direction === "OUTGOING"
-                    ? "Chọn hoặc nhập bộ phận phát hành"
-                    : "Hành chính"
-                }
-                list={direction === "OUTGOING" ? "issuing-department-options" : undefined}
+                placeholder="VD: Tổng Công ty đầu tư phát triển Đô Thị - CTCP"
+                list="issuing-department-options"
                 autoComplete="off"
               />
-              {direction === "OUTGOING" && (
-                <datalist id="issuing-department-options">
-                  {ISSUING_DEPARTMENT_OPTIONS.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-              )}
+              <datalist id="issuing-department-options">
+                {ISSUING_DEPARTMENT_OPTIONS.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </Field>
+          )}
+          {isOutgoing && (
+            <Field label="Phòng ban phát hành">
+              <Select
+                value={v.issuing_office}
+                onChange={(e) => set("issuing_office", e.target.value)}
+              >
+                <option value="">— Chọn phòng ban —</option>
+                {officeOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
             </Field>
           )}
           <div className="flex items-center sm:col-span-2">
@@ -688,37 +716,49 @@ export default function CorrespondenceForm({
             </div>
             {v.security_level === "HIGH" && (
               <p className="mt-1.5 text-xs text-amber-700">
-                Bảo mật Cao: tự chia sẻ cho 8 phòng ban mặc định (Ban giám đốc
-                công ty, Ban đầu tư, Phòng kế toán, Hội đồng quản trị, Ban kiểm
-                soát, Phòng tổ chức hành chính, Tổng giám đốc, CT - HĐQT).
-                Có thể sửa danh sách ở phần Chia sẻ.
+                {isOutgoing ? (
+                  <>
+                    Bảo mật Cao: tự chia sẻ cho phòng ban phát hành, Ban giám
+                    đốc, CT - HĐQT, Tổng giám đốc, Phòng Tổ chức hành chính.
+                    Có thể sửa danh sách ở phần Chia sẻ.
+                  </>
+                ) : (
+                  <>
+                    Bảo mật Cao: tự chia sẻ cho 8 phòng ban mặc định (Ban giám
+                    đốc công ty, Ban đầu tư, Phòng kế toán, Hội đồng quản trị,
+                    Ban kiểm soát, Phòng tổ chức hành chính, Tổng giám đốc,
+                    CT - HĐQT). Có thể sửa danh sách ở phần Chia sẻ.
+                  </>
+                )}
               </p>
             )}
           </div>
-          <div>
-            <p className="text-sm font-medium text-gray-700">Mức độ khẩn cấp</p>
-            <div className="mt-1.5 flex gap-4 text-sm">
-              {LEVEL_OPTIONS.map((o) => (
-                <label
-                  key={o.value}
-                  className="flex cursor-pointer items-center gap-1.5"
-                >
-                  <input
-                    type="radio"
-                    name="urgency"
-                    checked={v.urgency_level === o.value}
-                    onChange={() => set("urgency_level", o.value)}
-                  />
-                  {o.label}
-                </label>
-              ))}
-              {v.urgency_level && (
-                <LinkButton tone="muted" underline onClick={() => set("urgency_level", "")}>
-                  Xóa
-                </LinkButton>
-              )}
+          {!isOutgoing && (
+            <div>
+              <p className="text-sm font-medium text-gray-700">Mức độ khẩn cấp</p>
+              <div className="mt-1.5 flex gap-4 text-sm">
+                {LEVEL_OPTIONS.map((o) => (
+                  <label
+                    key={o.value}
+                    className="flex cursor-pointer items-center gap-1.5"
+                  >
+                    <input
+                      type="radio"
+                      name="urgency"
+                      checked={v.urgency_level === o.value}
+                      onChange={() => set("urgency_level", o.value)}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+                {v.urgency_level && (
+                  <LinkButton tone="muted" underline onClick={() => set("urgency_level", "")}>
+                    Xóa
+                  </LinkButton>
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </section>
 
@@ -730,7 +770,9 @@ export default function CorrespondenceForm({
               value={v.visibility}
               onChange={(e) => set("visibility", e.target.value)}
             >
-              {VISIBILITY_OPTIONS.map((o) => (
+              {VISIBILITY_OPTIONS.filter(
+                (o) => direction !== "INTERNAL" || o.value !== "PRIVATE",
+              ).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -885,28 +927,8 @@ export default function CorrespondenceForm({
       </section>
 
       <section className="rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="text-sm font-semibold text-gray-900">
-          {isIncoming ? "Ghi chú" : "Tình trạng xử lý"}
-        </h2>
-        {!isIncoming && (
-          <div className="mt-2 flex flex-wrap gap-4 text-sm">
-            {STATUS_OPTIONS.map((o) => (
-              <label
-                key={o.value}
-                className="flex cursor-pointer items-center gap-1.5"
-              >
-                <input
-                  type="radio"
-                  name="status"
-                  checked={v.processing_status === o.value}
-                  onChange={() => set("processing_status", o.value)}
-                />
-                {o.label}
-              </label>
-            ))}
-          </div>
-        )}
-        <div className={isIncoming ? "mt-2" : "mt-4"}>
+        <h2 className="text-sm font-semibold text-gray-900">Ghi chú</h2>
+        <div className="mt-2">
           <Field label="Ghi chú">
             <TextArea
               rows={3}

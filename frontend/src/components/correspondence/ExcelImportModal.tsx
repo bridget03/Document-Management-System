@@ -44,7 +44,8 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
       : h.header,
   );
   // Template đến: thêm cột "Tiêu đề công văn" (sau Số văn bản) và
-  // "Ngày tiếp nhận" (sau Ngày ký). Cột mới là optional — file Excel cũ
+  // "Ngày tiếp nhận" (sau Ngày ký). Template đi: thêm "Tiêu đề công văn"
+  // và "Phòng ban phát hành". Cột mới là optional — file Excel cũ
   // thiếu chúng vẫn import được (chỉ EXCEL_HEADERS là bắt buộc).
   const headers = [...baseHeaders];
   if (direction === "INCOMING") {
@@ -52,6 +53,12 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
     const kyIdx = headers.indexOf("Ngày ký");
     if (kyIdx >= 0) headers.splice(kyIdx + 1, 0, "Ngày tiếp nhận");
     else headers.push("Ngày tiếp nhận");
+  }
+  if (direction === "OUTGOING") {
+    headers.splice(1, 0, "Tiêu đề công văn");
+    const bpIdx = headers.indexOf("Bộ phận phát hành");
+    if (bpIdx >= 0) headers.splice(bpIdx + 1, 0, "Phòng ban phát hành");
+    else headers.push("Phòng ban phát hành");
   }
   // Văn bản đi: dòng mẫu dùng luôn phòng ban đầu tiên trong danh mục.
   // Mẫu ghi 2 nơi nhận cách nhau dấu phẩy để minh họa nhập nhiều nơi.
@@ -61,13 +68,13 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
       : cfg.sampleParty;
   const sample: Record<string, unknown> = {
     "Số văn bản": "CV001/2026/VICENZA",
-    "Tiêu đề công văn": direction === "INCOMING" ? "V/v nghỉ lễ Quốc khánh" : undefined,
+    "Tiêu đề công văn": direction === "INTERNAL" ? undefined : "V/v nghỉ lễ Quốc khánh",
     "Nơi nhận": direction === "INCOMING" ? undefined : outgoingSample,
     "Bộ phận/người nhận":
       direction === "INTERNAL" ? cfg.sampleParty : undefined,
     "Nơi gửi": direction === "INCOMING" ? cfg.sampleParty : undefined,
     "Số lượng văn bản": 1,
-    "Người ký": direction === "INCOMING" ? "Phòng Hành chính" : "Nguyễn Văn A",
+    "Người ký": direction === "INCOMING" ? "Phòng Hành chính" : undefined,
     "Mức độ bảo mật": "Thấp",
     "Ngày ký": "17/09/2026",
     "Ngày tiếp nhận": direction === "INCOMING" ? "18/09/2026" : undefined,
@@ -75,6 +82,7 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
     "Ngày hiệu lực": "17/09/2026",
     "Ngày hết hiệu lực": "",
     "Bộ phận phát hành": "Hành chính",
+    "Phòng ban phát hành": direction === "OUTGOING" ? "Phòng Kế toán" : undefined,
     "Ngày phát hành": "17/09/2026",
     "Loại văn bản": "CV01",
     "Tình trạng xử lý": "Dự thảo",
@@ -362,7 +370,11 @@ export default function ExcelImportModal({
                     {DIRECTION_CONFIG[direction].partyLabel.replace(" *", "")}
                   </th>
                   <th className="px-3 py-2 font-medium">
-                    {direction === "INCOMING" ? "Đơn vị tiếp nhận" : "Người ký"}
+                    {direction === "INCOMING"
+                      ? "Đơn vị tiếp nhận"
+                      : direction === "OUTGOING"
+                        ? "Phòng ban phát hành"
+                        : "Bộ phận phát hành"}
                   </th>
                   <th className="px-3 py-2 font-medium">Trạng thái</th>
                 </tr>
@@ -385,7 +397,13 @@ export default function ExcelImportModal({
                       )}
                     </td>
                     <td className="px-3 py-1.5">
-                      {String(r.data.signer || "—")}
+                      {String(
+                        direction === "OUTGOING"
+                          ? ((r.data as Record<string, unknown>).issuing_office || "—")
+                          : direction === "INTERNAL"
+                            ? ((r.data as Record<string, unknown>).issuing_department || "—")
+                            : (r.data.signer || "—"),
+                      )}
                     </td>
                     <td className="px-3 py-1.5 text-xs">
                       {r.errors.length === 0 ? (

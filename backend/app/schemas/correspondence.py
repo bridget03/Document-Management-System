@@ -94,6 +94,7 @@ class CorrCreate(BaseModel):
     effective_date: date | None = None
     expiry_date: date | None = None
     issuing_department: str | None = None
+    issuing_office: str | None = None
     issue_date: date | None = None
     document_type_id: str | None = None
     processing_status: str = "DRAFT"
@@ -121,6 +122,7 @@ class CorrUpdate(BaseModel):
     effective_date: date | None = None
     expiry_date: date | None = None
     issuing_department: str | None = None
+    issuing_office: str | None = None
     issue_date: date | None = None
     document_type_id: str | None = None
     processing_status: str | None = None
@@ -186,6 +188,7 @@ class CorrOut(BaseModel):
     effective_date: date | None = None
     expiry_date: date | None = None
     issuing_department: str | None = None
+    issuing_office: str | None = None
     issue_date: date | None = None
     document_type_id: str | None = None
     doc_type: DocTypeOut | None = None

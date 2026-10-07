@@ -78,6 +78,7 @@ export interface CorrDoc {
   effective_date?: string | null;
   expiry_date?: string | null;
   issuing_department?: string | null;
+  issuing_office?: string | null;
   issue_date?: string | null;
   document_type_id?: string | null;
   doc_type?: DocType | null;
@@ -121,6 +122,14 @@ export const LEVEL_OPTIONS = [
 export const SECURITY_OPTIONS = [
   { value: 'LOW', label: 'Thấp' },
   { value: 'HIGH', label: 'Cao' },
+];
+
+/** Công văn ĐI bảo mật Cao mặc định chia sẻ: phòng ban phát hành + 4 đơn vị này. */
+export const OUTGOING_HIGH_SECURITY_BASE: string[] = [
+  'Ban giám đốc',
+  'CT - HĐQT',
+  'Tổng giám đốc',
+  'Phòng Tổ chức hành chính',
 ];
 
 /** Công văn bảo mật Cao mặc định chia sẻ cho 8 phòng ban này. */
@@ -261,6 +270,7 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
   out.effective_date = dt(byKey.effective_date);
   out.expiry_date = dt(byKey.expiry_date);
   out.issuing_department = str(byKey.issuing_department);
+  out.issuing_office = str(raw['Phòng ban phát hành']);
   out.issue_date = dt(byKey.issue_date);
   out.document_type = str(byKey.document_type);
   if (byKey.processing_status !== undefined) {
@@ -281,7 +291,7 @@ export function validateRowClient(data: Record<string, unknown>, direction: Dire
   if (direction !== 'INCOMING' && !data.recipient)
     errs.push(direction === 'INTERNAL' ? 'Bộ phận/người nhận không được để trống.' : 'Nơi nhận không được để trống.');
   if (direction === 'INCOMING' && !data.sender) errs.push('Đơn vị phát hành không được để trống.');
-  if (!data.signer) errs.push(direction === 'INCOMING' ? 'Vui lòng nhập đơn vị tiếp nhận.' : 'Vui lòng chọn/nhập người ký.');
+  if (!data.signer && direction === 'INCOMING') errs.push('Vui lòng nhập đơn vị tiếp nhận.');
   if (!data.document_type_id) errs.push('Vui lòng chọn loại văn bản.');
   if (direction !== 'INCOMING' && !data.issuing_department) errs.push('Vui lòng nhập bộ phận phát hành.');
   return errs;

@@ -30,12 +30,30 @@ HIGH_SECURITY_DEPARTMENTS = [
 ]
 
 
-def high_security_sharing(security_level, visibility, department):
-    """Bao mat Cao => bat buoc pham vi DEPARTMENT; dung danh sach mac dinh
-    khi chua co danh sach phong ban. Tra ve (visibility, department)."""
+# Cong van DI mac dinh chia se: phong ban phat hanh + 4 don vi nay.
+OUTGOING_HIGH_SECURITY_BASE = [
+    "Ban giám đốc",
+    "CT - HĐQT",
+    "Tổng giám đốc",
+    "Phòng Tổ chức hành chính",
+]
+
+
+def high_security_sharing(security_level, visibility, department, direction=None, issuing_office=None):
+    """Bao mat Cao => bat buoc pham vi DEPARTMENT. Danh sach mac dinh:
+    - Van ban DI: phong ban phat hanh + 4 don vi co dinh.
+    - Con lai: 8 phong ban co dinh.
+    Ton trong danh sach user da chi dinh."""
     if (security_level or "").upper() == "HIGH":
-        dept = normalize_text((department or "").strip()) or "; ".join(HIGH_SECURITY_DEPARTMENTS)
-        return "DEPARTMENT", dept
+        if (department or "").strip():
+            return "DEPARTMENT", normalize_text(department.strip())
+        if (direction or "").upper() == "OUTGOING":
+            parts = []
+            if (issuing_office or "").strip():
+                parts.append(normalize_text(issuing_office.strip()))
+            parts.extend(OUTGOING_HIGH_SECURITY_BASE)
+            return "DEPARTMENT", "; ".join(parts)
+        return "DEPARTMENT", "; ".join(HIGH_SECURITY_DEPARTMENTS)
     return visibility, department
 STATUSES = {"DRAFT", "APPROVED", "PENDING_SIGNATURE", "ISSUED"}
 MAX_IMPORT_ROWS = 500
@@ -84,11 +102,8 @@ def validate_payload(
         errors.append("Đơn vị phát hành không được để trống.")
     if direction == "INTERNAL" and not (data.get("recipient") or "").strip():
         errors.append("Bộ phận/người nhận không được để trống.")
-    if not (data.get("signer") or "").strip():
-        if direction == "INCOMING":
-            errors.append("Vui lòng nhập đơn vị tiếp nhận.")
-        else:
-            errors.append("Vui lòng chọn/nhập người ký.")
+    if direction == "INCOMING" and not (data.get("signer") or "").strip():
+        errors.append("Vui lòng nhập đơn vị tiếp nhận.")
     type_id = data.get("document_type_id")
     if not type_id:
         errors.append("Vui lòng chọn loại văn bản.")
@@ -143,9 +158,10 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
     from app.models.user import User
 
     data = _norm_dates(data)
-    # Bao mat Cao => mac dinh pham vi DEPARTMENT + 8 phong ban.
+    # Bao mat Cao => mac dinh pham vi DEPARTMENT + danh sach phong ban.
     vis, dept = high_security_sharing(
-        data.get("security_level"), data.get("visibility"), data.get("department"))
+        data.get("security_level"), data.get("visibility"), data.get("department"),
+        direction, data.get("issuing_office"))
     data["visibility"], data["department"] = vis, dept
     # Default sharing department to the creator's own department.
     if (data.get("visibility") or "ORGANIZATION").upper() == "DEPARTMENT" and not (data.get("department") or "").strip():
@@ -171,6 +187,7 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
         effective_date=data.get("effective_date"),
         expiry_date=data.get("expiry_date"),
         issuing_department=normalize_text((data.get("issuing_department") or "").strip()),
+        issuing_office=(normalize_text((data.get("issuing_office") or "").strip()) or None),
         issue_date=data.get("issue_date"),
         document_type_id=data.get("document_type_id"),
         processing_status=data.get("processing_status") or "DRAFT",

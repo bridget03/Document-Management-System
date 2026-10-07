@@ -377,7 +377,8 @@ def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user
         # Bao mat Cao => mac dinh pham vi DEPARTMENT + 8 phong ban
         # (ke ca khi payload chi doi security_level).
         vis, dept = svc.high_security_sharing(
-            merged.get("security_level"), merged.get("visibility"), merged.get("department"))
+            merged.get("security_level"), merged.get("visibility"), merged.get("department"),
+            direction, merged.get("issuing_office"))
         merged["visibility"], merged["department"] = vis, dept
         errors = svc.validate_payload(db, direction, merged, exclude_id=doc.id)
         if errors:
@@ -388,7 +389,7 @@ def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user
         for k, v in data.items():
             if k in ("attachment_ids", "links"):
                 continue
-            if k in ("title", "recipient", "sender", "signer", "issuing_department", "notes") and isinstance(v, str):
+            if k in ("title", "recipient", "sender", "signer", "issuing_department", "issuing_office", "notes") and isinstance(v, str):
                 from app.database.database import normalize_text
                 v = normalize_text(v.strip()) or None
             if k == "visibility" and isinstance(v, str):
