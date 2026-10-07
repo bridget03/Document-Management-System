@@ -13,7 +13,30 @@ from app.models.correspondence import (
 )
 from app.models.document import Document
 
-LEVELS = {"LOW", "MEDIUM", "HIGH"}
+SECURITY_LEVELS = {"LOW", "HIGH"}
+URGENCY_LEVELS = {"LOW", "MEDIUM", "HIGH"}
+
+# Cong van bao mat Cao mac dinh chia se cho 8 phong ban nay
+# (khi nguoi dung khong chi dinh danh sach khac).
+HIGH_SECURITY_DEPARTMENTS = [
+    "Ban giám đốc công ty",
+    "Ban đầu tư",
+    "Phòng kế toán",
+    "Hội đồng quản trị",
+    "Ban kiểm soát",
+    "Phòng tổ chức hành chính",
+    "Tổng giám đốc",
+    "CT - HĐQT",
+]
+
+
+def high_security_sharing(security_level, visibility, department):
+    """Bao mat Cao => bat buoc pham vi DEPARTMENT; dung danh sach mac dinh
+    khi chua co danh sach phong ban. Tra ve (visibility, department)."""
+    if (security_level or "").upper() == "HIGH":
+        dept = normalize_text((department or "").strip()) or "; ".join(HIGH_SECURITY_DEPARTMENTS)
+        return "DEPARTMENT", dept
+    return visibility, department
 STATUSES = {"DRAFT", "APPROVED", "PENDING_SIGNATURE", "ISSUED"}
 MAX_IMPORT_ROWS = 500
 
@@ -58,11 +81,14 @@ def validate_payload(
     if direction == "OUTGOING" and not (data.get("recipient") or "").strip():
         errors.append("Nơi nhận không được để trống.")
     if direction == "INCOMING" and not (data.get("sender") or "").strip():
-        errors.append("Nơi gửi không được để trống.")
+        errors.append("Đơn vị phát hành không được để trống.")
     if direction == "INTERNAL" and not (data.get("recipient") or "").strip():
         errors.append("Bộ phận/người nhận không được để trống.")
     if not (data.get("signer") or "").strip():
-        errors.append("Vui lòng chọn/nhập người ký.")
+        if direction == "INCOMING":
+            errors.append("Vui lòng nhập đơn vị tiếp nhận.")
+        else:
+            errors.append("Vui lòng chọn/nhập người ký.")
     type_id = data.get("document_type_id")
     if not type_id:
         errors.append("Vui lòng chọn loại văn bản.")
@@ -72,11 +98,12 @@ def validate_payload(
             errors.append("Loại văn bản không tồn tại.")
         elif t.status != "ACTIVE":
             errors.append(f"Loại văn bản '{t.name}' đã ngừng sử dụng.")
-    if not (data.get("issuing_department") or "").strip():
+    if direction != "INCOMING" and not (data.get("issuing_department") or "").strip():
         errors.append("Vui lòng nhập bộ phận phát hành.")
-    for field in ("security_level", "urgency_level"):
-        if data.get(field) and data[field] not in LEVELS:
-            errors.append(f"{field} không hợp lệ.")
+    if data.get("security_level") and data["security_level"] not in SECURITY_LEVELS:
+        errors.append("Mức độ bảo mật chỉ nhận Thấp (LOW) hoặc Cao (HIGH).")
+    if data.get("urgency_level") and data["urgency_level"] not in URGENCY_LEVELS:
+        errors.append("urgency_level không hợp lệ.")
     if data.get("processing_status") and data["processing_status"] not in STATUSES:
         errors.append("Tình trạng xử lý không hợp lệ.")
     qty = data.get("quantity")
@@ -102,7 +129,7 @@ def _norm_dates(data: dict) -> dict:
     from datetime import date as _date
 
     out = dict(data)
-    for f in ("signed_date", "effective_date", "expiry_date", "issue_date"):
+    for f in ("signed_date", "received_date", "effective_date", "expiry_date", "issue_date"):
         v = out.get(f)
         if isinstance(v, str) and v.strip():
             try:
@@ -116,6 +143,10 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
     from app.models.user import User
 
     data = _norm_dates(data)
+    # Bao mat Cao => mac dinh pham vi DEPARTMENT + 8 phong ban.
+    vis, dept = high_security_sharing(
+        data.get("security_level"), data.get("visibility"), data.get("department"))
+    data["visibility"], data["department"] = vis, dept
     # Default sharing department to the creator's own department.
     if (data.get("visibility") or "ORGANIZATION").upper() == "DEPARTMENT" and not (data.get("department") or "").strip():
         creator = db.query(User).filter(User.id == user_id).first()
@@ -128,6 +159,7 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
     doc = CorrespondenceDocument(
         direction=direction,
         document_number=number,
+        title=(normalize_text((data.get("title") or "").strip()) or None),
         recipient=(normalize_text((data.get("recipient") or "").strip()) or None),
         sender=(normalize_text((data.get("sender") or "").strip()) or None),
         quantity=data.get("quantity"),
@@ -135,6 +167,7 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
         security_level=data.get("security_level"),
         urgency_level=data.get("urgency_level"),
         signed_date=data.get("signed_date"),
+        received_date=data.get("received_date"),
         effective_date=data.get("effective_date"),
         expiry_date=data.get("expiry_date"),
         issuing_department=normalize_text((data.get("issuing_department") or "").strip()),

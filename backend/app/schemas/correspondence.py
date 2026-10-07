@@ -82,6 +82,7 @@ class LinkIn(BaseModel):
 
 class CorrCreate(BaseModel):
     document_number: str
+    title: str | None = None
     recipient: str | None = None
     sender: str | None = None
     quantity: int | None = None
@@ -89,6 +90,7 @@ class CorrCreate(BaseModel):
     security_level: str | None = None
     urgency_level: str | None = None
     signed_date: date | None = None
+    received_date: date | None = None
     effective_date: date | None = None
     expiry_date: date | None = None
     issuing_department: str | None = None
@@ -107,6 +109,7 @@ class CorrCreate(BaseModel):
 
 class CorrUpdate(BaseModel):
     document_number: str | None = None
+    title: str | None = None
     recipient: str | None = None
     sender: str | None = None
     quantity: int | None = None
@@ -114,6 +117,7 @@ class CorrUpdate(BaseModel):
     security_level: str | None = None
     urgency_level: str | None = None
     signed_date: date | None = None
+    received_date: date | None = None
     effective_date: date | None = None
     expiry_date: date | None = None
     issuing_department: str | None = None
@@ -170,6 +174,7 @@ class CorrOut(BaseModel):
     id: str
     direction: str
     document_number: str
+    title: str | None = None
     recipient: str | None = None
     sender: str | None = None
     quantity: int | None = None
@@ -177,6 +182,7 @@ class CorrOut(BaseModel):
     security_level: str | None = None
     urgency_level: str | None = None
     signed_date: date | None = None
+    received_date: date | None = None
     effective_date: date | None = None
     expiry_date: date | None = None
     issuing_department: str | None = None

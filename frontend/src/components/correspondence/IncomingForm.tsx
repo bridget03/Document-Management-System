@@ -14,7 +14,7 @@ interface IncomingFormProps {
 
 /**
  * Form công văn ĐẾN (riêng, không dùng chung với công văn đi).
- * Nơi gửi chỉ 1 -> ô text đơn (multipleParty=false).
+ * Đơn vị phát hành chỉ 1 -> ô text đơn (multipleParty=false).
  */
 export default function IncomingForm(props: IncomingFormProps) {
   return <CorrespondenceForm direction="INCOMING" multipleParty={false} {...props} />;

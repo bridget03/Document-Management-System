@@ -15,6 +15,7 @@ from app.models import CorrespondenceAttachment, CorrespondenceLink, Corresponde
 from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.departments import router as departments_router
+from app.api.receiving_units import router as receiving_units_router
 from app.api.documents import router as docs_router
 from app.api.categories import router as cats_router
 from app.api.tags import router as tags_router
@@ -60,6 +61,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router, prefix="/api")
     app.include_router(departments_router, prefix="/api")
+    app.include_router(receiving_units_router, prefix="/api")
     app.include_router(audit_router, prefix="/api")
     app.include_router(docs_router, prefix="/api")
     app.include_router(cats_router, prefix="/api")
@@ -83,6 +85,7 @@ def on_startup():
 def seed():
     from app.models.correspondence import DocumentType
     from app.models.department import Department
+    from app.models.receiving_unit import DEFAULT_RECEIVING_UNITS, ReceivingUnit
 
     db = SessionLocal()
     try:
@@ -104,6 +107,9 @@ def seed():
         for name in ["Hành chính", "Kế toán", "Nhân sự", "Kinh doanh", "Kỹ thuật"]:
             if not db.query(Department).filter(Department.name == name).first():
                 db.add(Department(name=name, status="ACTIVE"))
+        for name in DEFAULT_RECEIVING_UNITS:
+            if not db.query(ReceivingUnit).filter(ReceivingUnit.name == name).first():
+                db.add(ReceivingUnit(name=name, status="ACTIVE"))
         db.commit()
     finally:
         db.close()

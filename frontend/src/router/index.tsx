@@ -17,6 +17,7 @@ import IncomingDetail from "../pages/IncomingDetail";
 import OutgoingDetail from "../pages/OutgoingDetail";
 import DocTypes from "../pages/DocTypes";
 import Departments from "../pages/Departments";
+import ReceivingUnits from "../pages/ReceivingUnits";
 import CorrSettings from "../pages/CorrSettings";
 import Upload from "../pages/Upload";
 import GoogleDrive from "../pages/GoogleDrive";
@@ -179,6 +180,14 @@ export default function Router() {
           element={
             <Guard>
               <Departments />
+            </Guard>
+          }
+        />
+        <Route
+          path="/receiving-units"
+          element={
+            <Guard>
+              <ReceivingUnits />
             </Guard>
           }
         />

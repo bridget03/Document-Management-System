@@ -38,11 +38,21 @@ const MAX_ROWS = 500;
 function downloadTemplate(direction: Direction, deptNames: string[]) {
   const cfg = DIRECTION_CONFIG[direction];
   // Template nội bộ dùng cột "Bộ phận/người nhận" thay cho "Nơi nhận".
-  const headers = EXCEL_HEADERS.map((h) =>
+  const baseHeaders = EXCEL_HEADERS.map((h) =>
     h.header === "Nơi nhận" && direction === "INTERNAL"
       ? "Bộ phận/người nhận"
       : h.header,
   );
+  // Template đến: thêm cột "Tiêu đề công văn" (sau Số văn bản) và
+  // "Ngày tiếp nhận" (sau Ngày ký). Cột mới là optional — file Excel cũ
+  // thiếu chúng vẫn import được (chỉ EXCEL_HEADERS là bắt buộc).
+  const headers = [...baseHeaders];
+  if (direction === "INCOMING") {
+    headers.splice(1, 0, "Tiêu đề công văn");
+    const kyIdx = headers.indexOf("Ngày ký");
+    if (kyIdx >= 0) headers.splice(kyIdx + 1, 0, "Ngày tiếp nhận");
+    else headers.push("Ngày tiếp nhận");
+  }
   // Văn bản đi: dòng mẫu dùng luôn phòng ban đầu tiên trong danh mục.
   // Mẫu ghi 2 nơi nhận cách nhau dấu phẩy để minh họa nhập nhiều nơi.
   const outgoingSample =
@@ -51,14 +61,16 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
       : cfg.sampleParty;
   const sample: Record<string, unknown> = {
     "Số văn bản": "CV001/2026/VICENZA",
+    "Tiêu đề công văn": direction === "INCOMING" ? "V/v nghỉ lễ Quốc khánh" : undefined,
     "Nơi nhận": direction === "INCOMING" ? undefined : outgoingSample,
     "Bộ phận/người nhận":
       direction === "INTERNAL" ? cfg.sampleParty : undefined,
     "Nơi gửi": direction === "INCOMING" ? cfg.sampleParty : undefined,
     "Số lượng văn bản": 1,
-    "Người ký": "Nguyễn Văn A",
-    "Mức độ bảo mật": "Trung bình",
+    "Người ký": direction === "INCOMING" ? "Phòng Hành chính" : "Nguyễn Văn A",
+    "Mức độ bảo mật": "Thấp",
     "Ngày ký": "17/09/2026",
+    "Ngày tiếp nhận": direction === "INCOMING" ? "18/09/2026" : undefined,
     "Mức độ khẩn cấp": "Thấp",
     "Ngày hiệu lực": "17/09/2026",
     "Ngày hết hiệu lực": "",
@@ -349,7 +361,9 @@ export default function ExcelImportModal({
                   <th className="px-3 py-2 font-medium">
                     {DIRECTION_CONFIG[direction].partyLabel.replace(" *", "")}
                   </th>
-                  <th className="px-3 py-2 font-medium">Người ký</th>
+                  <th className="px-3 py-2 font-medium">
+                    {direction === "INCOMING" ? "Đơn vị tiếp nhận" : "Người ký"}
+                  </th>
                   <th className="px-3 py-2 font-medium">Trạng thái</th>
                 </tr>
               </thead>

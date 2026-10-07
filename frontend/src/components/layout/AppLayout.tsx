@@ -31,7 +31,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       <div className="lg:pl-60">
         <Header onMenu={() => setDrawer(true)} />
-        <main className="mx-auto w-full max-w-6xl animate-fade-in px-4 py-6 md:px-6">{children}</main>
+        <main className="w-full animate-fade-in px-3 py-6 md:px-5">{children}</main>
       </div>
     </div>
   );

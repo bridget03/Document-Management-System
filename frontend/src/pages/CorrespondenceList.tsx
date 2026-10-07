@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link } from "react-router-dom";
 import {
   useQuery,
   useMutation,
@@ -14,17 +14,10 @@ import {
   SlidersHorizontal,
   ChevronLeft,
   ChevronRight,
-  Folder,
-  FolderPlus,
-  Trash2,
 } from "lucide-react";
 import {
   corrList,
   corrDelete,
-  corrCreateFolder,
-  corrDeleteFolder,
-  corrFolders,
-  corrMoveToFolder,
   listDocTypes,
 } from "../services/correspondenceApi";
 import { Card, TableSkeleton } from "../components/ui/Skeleton";
@@ -59,80 +52,12 @@ interface Props {
   base: string;
 }
 
-interface CorrFolder {
-  id: string;
-  name: string;
-  parent_id: string | null;
-  item_count: number;
-}
-
-interface FolderTreeProps {
-  folders: CorrFolder[];
-  parentId: string | null;
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-  onCreateChild: (id: string) => void;
-  onDelete: (id: string) => void;
-}
-
-function FolderTree({
-  folders,
-  parentId,
-  selectedId,
-  onSelect,
-  onCreateChild,
-  onDelete,
-}: FolderTreeProps) {
-  return folders
-    .filter((folder) => folder.parent_id === parentId)
-    .map((folder) => (
-      <div key={folder.id} className="ml-3 border-l border-gray-200 pl-2">
-        <div className="group flex items-center rounded-md hover:bg-gray-50">
-          <button
-            type="button"
-            className={`flex min-w-0 flex-1 items-center gap-1.5 px-2 py-1.5 text-left text-xs font-medium ${selectedId === folder.id ? "text-brand-700" : "text-gray-700"}`}
-            onClick={() => onSelect(folder.id)}
-          >
-            <Folder size={14} className="shrink-0" />
-            <span className="truncate">{folder.name}</span>
-            <span className="ml-auto text-gray-400">{folder.item_count}</span>
-          </button>
-          <button
-            type="button"
-            className="p-1.5 text-gray-400 hover:text-brand-700"
-            aria-label={`Tạo thư mục con trong ${folder.name}`}
-            onClick={() => onCreateChild(folder.id)}
-          >
-            <FolderPlus size={14} />
-          </button>
-          <button
-            type="button"
-            className="p-1.5 text-gray-400 hover:text-red-600"
-            aria-label={`Xóa thư mục ${folder.name}`}
-            onClick={() => onDelete(folder.id)}
-          >
-            <Trash2 size={13} />
-          </button>
-        </div>
-        <FolderTree
-          folders={folders}
-          parentId={folder.id}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          onCreateChild={onCreateChild}
-          onDelete={onDelete}
-        />
-      </div>
-    ));
-}
-
 export default function CorrespondenceList({
   direction,
   title,
   subtitle,
   base,
 }: Props) {
-  const [searchParams, setSearchParams] = useSearchParams();
   const cfg = DIRECTION_CONFIG[direction];
   const apiDir = cfg.api;
   const dirLabel = cfg.short;
@@ -149,43 +74,10 @@ export default function CorrespondenceList({
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [del, setDel] = useState<CorrDoc | null>(null);
   const [importOpen, setImportOpen] = useState(false);
-  const [folderId, setFolderId] = useState<string | null>(() =>
-    searchParams.get("folder"),
-  );
-  const [folderName, setFolderName] = useState("");
-  const [folderParentId, setFolderParentId] = useState<string | null>(null);
-  const [folderCreateOpen, setFolderCreateOpen] = useState(false);
-  const [moveDoc, setMoveDoc] = useState<CorrDoc | null>(null);
   const qc = useQueryClient();
   const { toast } = useToast();
   // Member read-only: chỉ admin (phòng tổ chức) được tạo/import công văn.
   const isAdmin = useAuthStore((s) => s.user?.role === "ADMIN");
-
-  // Giữ ngữ cảnh thư mục trong URL (?folder=) để nút "Thêm mới công văn"
-  // truyền sang trang tạo, và nút Quay lại / reload vẫn giữ đúng thư mục.
-  const selectFolder = (id: string | null) => {
-    setFolderId(id);
-    setPage(1);
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        if (id) next.set("folder", id);
-        else next.delete("folder");
-        return next;
-      },
-      { replace: true },
-    );
-  };
-
-  // Đồng bộ khi user dùng nút Back/Forward hoặc quay về từ trang tạo (?folder=).
-  useEffect(() => {
-    const fromUrl = searchParams.get("folder");
-    if (fromUrl !== folderId) {
-      setFolderId(fromUrl);
-      setPage(1);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -199,10 +91,6 @@ export default function CorrespondenceList({
     queryKey: ["corr-types"],
     queryFn: () => listDocTypes(),
   });
-  const { data: folders = [] } = useQuery<CorrFolder[]>({
-    queryKey: ["corr-folders", direction],
-    queryFn: () => corrFolders(direction),
-  });
 
   const filterCount = [
     typeId,
@@ -211,7 +99,6 @@ export default function CorrespondenceList({
     scope !== "all" ? scope : "",
     importantOnly ? "important" : "",
   ].filter(Boolean).length;
-  const activeFolder = folders.find((f) => f.id === folderId) ?? null;
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
     queryKey: [
       "corr",
@@ -221,7 +108,6 @@ export default function CorrespondenceList({
       signer,
       status,
       scope,
-      folderId,
       sortBy,
       sortOrder,
       page,
@@ -234,7 +120,6 @@ export default function CorrespondenceList({
         signer: signer || undefined,
         status: status || undefined,
         scope: scope !== "all" ? scope : undefined,
-        folder_id: folderId || undefined,
         is_important: importantOnly ? true : undefined,
         sort_by: sortBy,
         sort_order: sortOrder,
@@ -252,42 +137,6 @@ export default function CorrespondenceList({
       toast("success", "Đã xóa công văn.");
     },
     onError: () => toast("error", "Không xóa được công văn."),
-  });
-
-  const createFolder = useMutation({
-    mutationFn: () => corrCreateFolder(folderName, direction, folderParentId),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["corr-folders", direction] });
-      setFolderName("");
-      setFolderParentId(null);
-      setFolderCreateOpen(false);
-      toast("success", "Đã tạo thư mục.");
-    },
-    onError: () => toast("error", "Không tạo được thư mục."),
-  });
-
-  const deleteFolder = useMutation({
-    mutationFn: (id: string) => corrDeleteFolder(id),
-    onSuccess: (_data, deletedId) => {
-      // Nếu đang đứng trong thư mục vừa xóa thì về "Tất cả" (kèm URL).
-      if (folderId === deletedId) selectFolder(null);
-      qc.invalidateQueries({ queryKey: ["corr-folders", direction] });
-      qc.invalidateQueries({ queryKey: ["corr", direction] });
-      toast("success", "Đã xóa thư mục. Công văn vẫn được giữ lại.");
-    },
-    onError: () => toast("error", "Không xóa được thư mục."),
-  });
-
-  const moveToFolder = useMutation({
-    mutationFn: (targetFolderId: string) =>
-      corrMoveToFolder(targetFolderId, [moveDoc!.id]),
-    onSuccess: () => {
-      setMoveDoc(null);
-      qc.invalidateQueries({ queryKey: ["corr-folders", direction] });
-      qc.invalidateQueries({ queryKey: ["corr", direction] });
-      toast("success", "Đã chuyển công văn vào thư mục.");
-    },
-    onError: () => toast("error", "Không chuyển được công văn."),
   });
 
   const clearAll = () => {
@@ -324,23 +173,9 @@ export default function CorrespondenceList({
             </Button>
           )}
           {isAdmin && (
-            <Link
-              to={
-                folderId
-                  ? `${base}/new?folder=${encodeURIComponent(folderId)}`
-                  : `${base}/new`
-              }
-              title={
-                activeFolder
-                  ? `Tạo công văn trong thư mục "${activeFolder.name}"`
-                  : "Tạo công văn mới"
-              }
-            >
+            <Link to={`${base}/new`} title="Tạo công văn mới">
               <Button variant="primary">
-                <Plus size={15} />{" "}
-                {activeFolder
-                  ? `Thêm mới vào "${activeFolder.name}"`
-                  : "Thêm mới công văn"}
+                <Plus size={15} /> Thêm mới công văn
               </Button>
             </Link>
           )}
@@ -353,7 +188,7 @@ export default function CorrespondenceList({
             <Search size={16} className="shrink-0 text-gray-400" />
             <input
               className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-              placeholder="Tìm số văn bản, nơi nhận/gửi, người ký..."
+              placeholder="Tìm số văn bản, tên tiêu đề, nơi nhận/gửi..."
               aria-label={`Tìm văn bản ${dirLabel}`}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -431,7 +266,11 @@ export default function CorrespondenceList({
               <Search size={14} className="shrink-0 text-gray-400" />
               <input
                 className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-                placeholder="Người ký..."
+                placeholder={
+                  direction === "INCOMING"
+                    ? "Đơn vị tiếp nhận..."
+                    : "Người ký..."
+                }
                 aria-label="Lọc người ký"
                 value={signer}
                 onChange={(e) => {
@@ -460,41 +299,6 @@ export default function CorrespondenceList({
             <LinkButton onClick={clearAll}>Xóa bộ lọc</LinkButton>
           </div>
         )}
-      </Card>
-
-      <Card className="p-3">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-sm font-semibold text-gray-800">Thư mục của tôi</p>
-          <Button
-            size="sm"
-            onClick={() => {
-              setFolderParentId(null);
-              setFolderCreateOpen(true);
-            }}
-          >
-            <FolderPlus size={14} /> Tạo thư mục
-          </Button>
-        </div>
-        <div className="space-y-1">
-          <Button
-            size="sm"
-            variant={folderId === null ? "primary" : "secondary"}
-            onClick={() => selectFolder(null)}
-          >
-            Tất cả công văn
-          </Button>
-          <FolderTree
-            folders={folders}
-            parentId={null}
-            selectedId={folderId}
-            onSelect={(id) => selectFolder(id)}
-            onCreateChild={(id) => {
-              setFolderParentId(id);
-              setFolderCreateOpen(true);
-            }}
-            onDelete={(id) => deleteFolder.mutate(id)}
-          />
-        </div>
       </Card>
 
       {isError ? (
@@ -540,7 +344,6 @@ export default function CorrespondenceList({
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
-              onMoveToFolder={setMoveDoc}
             />
           ) : direction === "OUTGOING" ? (
             <OutgoingTable
@@ -550,7 +353,6 @@ export default function CorrespondenceList({
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
-              onMoveToFolder={setMoveDoc}
             />
           ) : (
             <CorrespondenceTable
@@ -561,7 +363,6 @@ export default function CorrespondenceList({
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
-              onMoveToFolder={setMoveDoc}
             />
           )}
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2.5 text-sm">
@@ -611,43 +412,6 @@ export default function CorrespondenceList({
           Bạn có chắc chắn muốn xóa công văn “{del?.document_number}”? Hành động
           này không thể hoàn tác. Tệp đính kèm gốc vẫn được giữ lại.
         </p>
-      </Modal>
-
-      <Modal
-        open={folderCreateOpen}
-        onClose={() => setFolderCreateOpen(false)}
-        title={folderParentId ? "Tạo thư mục con" : "Tạo thư mục công văn"}
-        footer={
-          <>
-            <Button onClick={() => setFolderCreateOpen(false)}>Hủy</Button>
-            <Button
-              variant="primary"
-              loading={createFolder.isPending}
-              disabled={!folderName.trim()}
-              onClick={() => createFolder.mutate()}
-            >
-              Tạo thư mục
-            </Button>
-          </>
-        }
-      >
-        <label
-          className="block text-sm font-medium text-gray-700"
-          htmlFor="folder-name"
-        >
-          Tên thư mục
-        </label>
-        <input
-          id="folder-name"
-          autoFocus
-          value={folderName}
-          onChange={(e) => setFolderName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && folderName.trim()) createFolder.mutate();
-          }}
-          className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm outline-none focus:border-brand-600"
-          placeholder="Ví dụ: Hồ sơ dự án A"
-        />
       </Modal>
 
       <ExcelImportModal

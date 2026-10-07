@@ -60,17 +60,14 @@ export default function Login() {
             <img
               src={logoUrl}
               alt="Vicenza DMS logo"
-              className="h-24 w-24 shrink-0 rounded-lg object-cover"
+              className="mb-6 h-24 w-24 shrink-0 rounded-lg object-cover"
             />
           </div>
           <div className="mb-6 flex flex-col items-center gap-2 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-700 text-white">
-              <FileStack size={24} />
-            </span>
             <h1 className="text-xl font-bold text-gray-900">
-              Vicenza Document Management System
+              PHẦN MỀM QUẢN LÝ VĂN THƯ VICENZA
             </h1>
-            <p className="text-sm text-gray-500">Sign in to your workspace</p>
+            <p className="text-sm text-gray-500">Đăng nhập để tiếp tục</p>
           </div>
           <form
             onSubmit={submit}
@@ -110,14 +107,13 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
               />
             </Field>
-            <Button
-              type="submit"
-              variant="primary"
-              loading={loading}>
-              Sign in
-            </Button>
+            <div className="flex justify-center mt-4">
+              <Button type="submit" variant="primary" loading={loading}>
+                Đăng nhập
+              </Button>
+            </div>
             <p className="text-center text-xs text-gray-400">
-              Default account: admin@example.com / admin123
+              Tài khoản demo: admin@example.com / admin123
             </p>
           </form>
         </div>

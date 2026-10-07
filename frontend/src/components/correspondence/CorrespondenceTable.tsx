@@ -5,7 +5,6 @@ import {
   ArrowUp,
   ArrowUpDown,
   Eye,
-  FolderInput,
   Pencil,
   Trash2,
   MoreHorizontal,
@@ -15,6 +14,7 @@ import Badge from "../ui/Badge";
 import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
 import { useAuthStore } from "../../stores/authStore";
+import { ResizeHandle, useResizableColumns } from "./useResizableColumns";
 import {
   STATUS_CONFIG,
   fmtDateVN,
@@ -32,7 +32,6 @@ interface Props {
   sortBy: CorrSortKey;
   sortOrder: SortOrder;
   onSort: (key: CorrSortKey) => void;
-  onMoveToFolder: (doc: CorrDoc) => void;
 }
 
 export type CorrSortKey =
@@ -41,9 +40,22 @@ export type CorrSortKey =
   | "party"
   | "signer"
   | "signed_date"
+  | "received_date"
   | "issue_date"
   | "processing_status";
 export type SortOrder = "asc" | "desc";
+
+const COL_WIDTHS: Record<string, number> = {
+  docNo: 150,
+  type: 200,
+  party: 220,
+  signer: 160,
+  signedDate: 130,
+  issueDate: 130,
+  status: 140,
+  actions: 90,
+};
+const COL_ORDER = Object.keys(COL_WIDTHS);
 
 export default function CorrespondenceTable({
   items,
@@ -53,13 +65,11 @@ export default function CorrespondenceTable({
   sortBy,
   sortOrder,
   onSort,
-  onMoveToFolder,
 }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const me = useAuthStore((s) => s.user);
   // Member read-only: chỉ admin hoặc chủ sở hữu (văn bản cũ) được sửa/xóa.
-  // "Chuyển vào thư mục" là sắp xếp cá nhân nên giữ cho mọi người.
   const canWriteDoc = (d: CorrDoc) =>
     me?.role === "ADMIN" || (d.created_by != null && d.created_by === me?.id);
   const cfg = DIRECTION_CONFIG[dir];
@@ -69,6 +79,11 @@ export default function CorrespondenceTable({
     setAnchor(null);
   }, []);
   const openDoc = items.find((i) => i.id === openId) ?? null;
+  const { widths, onResizeStart, resetColumn } = useResizableColumns(
+    "corr-cols-general",
+    COL_WIDTHS,
+  );
+  const minWidth = COL_ORDER.reduce((s, k) => s + (widths[k] ?? COL_WIDTHS[k]), 0);
   const sortableHeader = (label: string, key: CorrSortKey) => {
     const active = sortBy === key;
     const Icon = active
@@ -95,11 +110,16 @@ export default function CorrespondenceTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[860px] text-sm">
+      <table className="w-full table-fixed text-sm" style={{ minWidth }}>
+        <colgroup>
+          {COL_ORDER.map((k) => (
+            <col key={k} style={{ width: widths[k] ?? COL_WIDTHS[k] }} />
+          ))}
+        </colgroup>
         <thead>
           <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
             <th
-              className="px-4 py-2.5 font-medium"
+              className="relative px-4 py-2.5 font-medium"
               aria-sort={
                 sortBy === "document_number"
                   ? sortOrder === "asc"
@@ -109,9 +129,10 @@ export default function CorrespondenceTable({
               }
             >
               {sortableHeader("Số văn bản", "document_number")}
+              <ResizeHandle onResizeStart={onResizeStart("docNo")} onReset={() => resetColumn("docNo")} />
             </th>
             <th
-              className="px-4 py-2.5 font-medium"
+              className="relative px-4 py-2.5 font-medium"
               aria-sort={
                 sortBy === "document_type"
                   ? sortOrder === "asc"
@@ -121,9 +142,10 @@ export default function CorrespondenceTable({
               }
             >
               {sortableHeader("Loại", "document_type")}
+              <ResizeHandle onResizeStart={onResizeStart("type")} onReset={() => resetColumn("type")} />
             </th>
             <th
-              className="px-4 py-2.5 font-medium"
+              className="relative px-4 py-2.5 font-medium"
               aria-sort={
                 sortBy === "party"
                   ? sortOrder === "asc"
@@ -133,9 +155,10 @@ export default function CorrespondenceTable({
               }
             >
               {sortableHeader(cfg.partyLabel.replace(" *", ""), "party")}
+              <ResizeHandle onResizeStart={onResizeStart("party")} onReset={() => resetColumn("party")} />
             </th>
             <th
-              className="px-4 py-2.5 font-medium"
+              className="relative px-4 py-2.5 font-medium"
               aria-sort={
                 sortBy === "signer"
                   ? sortOrder === "asc"
@@ -144,10 +167,11 @@ export default function CorrespondenceTable({
                   : "none"
               }
             >
-              {sortableHeader("Người ký", "signer")}
+              {sortableHeader(dir === "INCOMING" ? "Đơn vị tiếp nhận" : "Người ký", "signer")}
+              <ResizeHandle onResizeStart={onResizeStart("signer")} onReset={() => resetColumn("signer")} />
             </th>
             <th
-              className="px-4 py-2.5 font-medium"
+              className="relative px-4 py-2.5 font-medium"
               aria-sort={
                 sortBy === "signed_date"
                   ? sortOrder === "asc"
@@ -157,9 +181,10 @@ export default function CorrespondenceTable({
               }
             >
               {sortableHeader("Ngày ký", "signed_date")}
+              <ResizeHandle onResizeStart={onResizeStart("signedDate")} onReset={() => resetColumn("signedDate")} />
             </th>
             <th
-              className="px-4 py-2.5 font-medium"
+              className="relative px-4 py-2.5 font-medium"
               aria-sort={
                 sortBy === "issue_date"
                   ? sortOrder === "asc"
@@ -169,9 +194,10 @@ export default function CorrespondenceTable({
               }
             >
               {sortableHeader("Ngày phát hành", "issue_date")}
+              <ResizeHandle onResizeStart={onResizeStart("issueDate")} onReset={() => resetColumn("issueDate")} />
             </th>
             <th
-              className="px-4 py-2.5 font-medium"
+              className="relative px-4 py-2.5 font-medium"
               aria-sort={
                 sortBy === "processing_status"
                   ? sortOrder === "asc"
@@ -181,8 +207,9 @@ export default function CorrespondenceTable({
               }
             >
               {sortableHeader("Tình trạng", "processing_status")}
+              <ResizeHandle onResizeStart={onResizeStart("status")} onReset={() => resetColumn("status")} />
             </th>
-            <th className="px-4 py-2.5 text-right font-medium">Actions</th>
+            <th className="relative px-4 py-2.5 text-right font-medium">Actions<ResizeHandle onResizeStart={onResizeStart("actions")} onReset={() => resetColumn("actions")} /></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100">
@@ -211,14 +238,14 @@ export default function CorrespondenceTable({
                 <td className="whitespace-nowrap px-4 py-2.5 text-gray-600">
                   {d.doc_type ? `${d.doc_type.code} · ${d.doc_type.name}` : "—"}
                 </td>
-                <td className="max-w-[260px] px-4 py-2.5 text-gray-600">
+                <td className="px-4 py-2.5 text-gray-600">
                   {(() => {
                     const list = partyList(d);
                     if (list.length === 0) return "—";
                     return (
                       <span className="flex flex-wrap items-center gap-1">
                         <span
-                          className="max-w-[180px] truncate"
+                          className="truncate"
                           title={list[0]}
                         >
                           {list[0]}

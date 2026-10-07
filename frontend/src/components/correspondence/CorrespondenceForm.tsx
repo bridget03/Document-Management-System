@@ -10,12 +10,17 @@ import { uploadDocument } from "../../services/documentApi";
 import { listDocTypes, nextNumber } from "../../services/correspondenceApi";
 import { listDepartments } from "../../services/departmentApi";
 import type { Department } from "../../types/department";
+import { listReceivingUnits } from "../../services/receivingUnitApi";
+import type { ReceivingUnit } from "../../types/receivingUnit";
 import {
   LEVEL_OPTIONS,
+  SECURITY_OPTIONS,
+  HIGH_SECURITY_DEPARTMENTS,
   STATUS_OPTIONS,
   DIRECTION_CONFIG,
   VISIBILITY_OPTIONS,
   ISSUING_DEPARTMENT_OPTIONS,
+  joinDeptList,
   type CorrDoc,
   type Direction,
   type DocType,
@@ -23,6 +28,7 @@ import {
 
 export interface CorrFormValue {
   document_number: string;
+  title: string;
   recipient: string;
   sender: string;
   quantity: string;
@@ -30,6 +36,7 @@ export interface CorrFormValue {
   security_level: string;
   urgency_level: string;
   signed_date: string;
+  received_date: string;
   effective_date: string;
   expiry_date: string;
   issuing_department: string;
@@ -58,6 +65,7 @@ interface Props {
 
 const empty: CorrFormValue = {
   document_number: "",
+  title: "",
   recipient: "",
   sender: "",
   quantity: "",
@@ -65,6 +73,7 @@ const empty: CorrFormValue = {
   security_level: "",
   urgency_level: "",
   signed_date: "",
+  received_date: "",
   effective_date: "",
   expiry_date: "",
   issuing_department: "",
@@ -94,6 +103,7 @@ export function joinParty(list: string[]): string {
 function toValue(d: CorrDoc): CorrFormValue {
   return {
     document_number: d.document_number,
+    title: d.title || "",
     recipient: d.recipient || "",
     sender: d.sender || "",
     quantity:
@@ -102,6 +112,7 @@ function toValue(d: CorrDoc): CorrFormValue {
     security_level: d.security_level || "",
     urgency_level: d.urgency_level || "",
     signed_date: d.signed_date || "",
+    received_date: d.received_date || "",
     effective_date: d.effective_date || "",
     expiry_date: d.expiry_date || "",
     issuing_department: d.issuing_department || "",
@@ -146,6 +157,11 @@ export default function CorrespondenceForm({
     queryKey: ["departments-active"],
     queryFn: () => listDepartments(true),
   });
+  const { data: receivingUnits } = useQuery<ReceivingUnit[]>({
+    queryKey: ["receiving-units-active"],
+    queryFn: () => listReceivingUnits(true),
+    enabled: direction === "INCOMING",
+  });
 
   useEffect(() => {
     setV(initial ? toValue(initial) : empty);
@@ -157,9 +173,27 @@ export default function CorrespondenceForm({
   const set = (k: keyof CorrFormValue, val: string) =>
     setV((p) => ({ ...p, [k]: val }));
 
+  // Chọn bảo mật Cao => tự đặt phạm vi DEPARTMENT + 8 phòng ban mặc định
+  // (user vẫn sửa được ở phần Chia sẻ sau đó).
+  const onSecurityChange = (val: string) =>
+    setV((p) =>
+      val === "HIGH"
+        ? {
+            ...p,
+            security_level: val,
+            visibility: "DEPARTMENT",
+            department: joinDeptList(HIGH_SECURITY_DEPARTMENTS),
+          }
+        : { ...p, security_level: val },
+    );
+
   const partyLabel = DIRECTION_CONFIG[direction].partyLabel;
   const partyKey = DIRECTION_CONFIG[direction].partyKey;
-  // Công văn đến: chỉ 1 nơi gửi -> ô text đơn. Đi/Nội bộ: nhiều nơi -> chip tag.
+  // Riêng công văn đến: form rút gọn (nhập tay số văn bản, không số lượng /
+  // bộ phận phát hành / tình trạng xử lý, thêm tiêu đề + ngày tiếp nhận).
+  const isIncoming = direction === "INCOMING";
+  const signerLabel = isIncoming ? "Đơn vị tiếp nhận *" : "Người ký *";
+  // Công văn đến: chỉ 1 đơn vị phát hành -> ô text đơn. Đi/Nội bộ: nhiều nơi -> chip tag.
   const allowMultiple = multipleParty ?? direction !== "INCOMING";
   const partyList = allowMultiple ? splitParty(v[partyKey]) : [];
 
@@ -225,6 +259,14 @@ export default function CorrespondenceForm({
       return { ...p, department: joinParty(cur) };
     });
   };
+
+  // Dropdown "Đơn vị tiếp nhận" (văn bản đến) dùng danh mục đơn vị tiếp nhận.
+  // Giữ lại giá trị cũ nếu không còn trong danh mục để không mất dữ liệu khi sửa.
+  const unitNames = (receivingUnits || []).map((u) => u.name);
+  const signerOptions =
+    v.signer && !unitNames.includes(v.signer)
+      ? [...unitNames, v.signer]
+      : unitNames;
 
   // Phòng ban đã khai báo (Cấu hình → Phòng ban) chưa được chọn.
   const deptAdded = new Set(deptList.map((s) => s.toLowerCase()));
@@ -362,10 +404,15 @@ export default function CorrespondenceForm({
           : "Nơi nhận không được để trống."
       );
     if (direction === "INCOMING" && !normalized.sender.trim())
-      errs.push("Nơi gửi không được để trống.");
-    if (!normalized.signer.trim()) errs.push("Vui lòng chọn/nhập người ký.");
+      errs.push("Đơn vị phát hành không được để trống.");
+    if (!normalized.signer.trim())
+      errs.push(
+        isIncoming
+          ? "Vui lòng nhập đơn vị tiếp nhận."
+          : "Vui lòng chọn/nhập người ký.",
+      );
     if (!normalized.document_type_id) errs.push("Vui lòng chọn loại văn bản.");
-    if (!normalized.issuing_department.trim())
+    if (!isIncoming && !normalized.issuing_department.trim())
       errs.push("Vui lòng nhập bộ phận phát hành.");
     if (
       normalized.quantity.trim() &&
@@ -428,15 +475,26 @@ export default function CorrespondenceForm({
                 onChange={(e) => set("document_number", e.target.value)}
                 placeholder="CV001/2026/VICENZA"
               />
-              <Button
-                size="sm"
-                onClick={autoNumber}
-                title="Tự sinh số tiếp theo"
-              >
-                <Wand2 size={14} /> Số mới
-              </Button>
+              {!isIncoming && (
+                <Button
+                  size="sm"
+                  onClick={autoNumber}
+                  title="Tự sinh số tiếp theo"
+                >
+                  <Wand2 size={14} /> Số mới
+                </Button>
+              )}
             </div>
           </Field>
+          {isIncoming && (
+            <Field label="Tiêu đề công văn">
+              <TextInput
+                value={v.title}
+                onChange={(e) => set("title", e.target.value)}
+                placeholder="VD: V/v nghỉ lễ Quốc khánh"
+              />
+            </Field>
+          )}
           <Field label={partyLabel}>
             {allowMultiple ? (
               <>
@@ -520,20 +578,36 @@ export default function CorrespondenceForm({
               />
             )}
           </Field>
-          <Field label="Số lượng văn bản">
-            <TextInput
-              inputMode="numeric"
-              value={v.quantity}
-              onChange={(e) => set("quantity", e.target.value)}
-              placeholder="1"
-            />
-          </Field>
-          <Field label="Người ký *">
-            <TextInput
-              value={v.signer}
-              onChange={(e) => set("signer", e.target.value)}
-              placeholder="Nguyễn Văn A"
-            />
+          {!isIncoming && (
+            <Field label="Số lượng văn bản">
+              <TextInput
+                inputMode="numeric"
+                value={v.quantity}
+                onChange={(e) => set("quantity", e.target.value)}
+                placeholder="1"
+              />
+            </Field>
+          )}
+          <Field label={signerLabel}>
+            {isIncoming ? (
+              <Select
+                value={v.signer}
+                onChange={(e) => set("signer", e.target.value)}
+              >
+                <option value="">— Chọn đơn vị tiếp nhận —</option>
+                {signerOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <TextInput
+                value={v.signer}
+                onChange={(e) => set("signer", e.target.value)}
+                placeholder="Nguyễn Văn A"
+              />
+            )}
           </Field>
           <Field label="Loại văn bản *">
             <Select
@@ -548,26 +622,28 @@ export default function CorrespondenceForm({
               ))}
             </Select>
           </Field>
-          <Field label="Bộ phận phát hành *">
-            <TextInput
-              value={v.issuing_department}
-              onChange={(e) => set("issuing_department", e.target.value)}
-              placeholder={
-                direction === "OUTGOING"
-                  ? "Chọn hoặc nhập bộ phận phát hành"
-                  : "Hành chính"
-              }
-              list={direction === "OUTGOING" ? "issuing-department-options" : undefined}
-              autoComplete="off"
-            />
-            {direction === "OUTGOING" && (
-              <datalist id="issuing-department-options">
-                {ISSUING_DEPARTMENT_OPTIONS.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            )}
-          </Field>
+          {!isIncoming && (
+            <Field label="Bộ phận phát hành *">
+              <TextInput
+                value={v.issuing_department}
+                onChange={(e) => set("issuing_department", e.target.value)}
+                placeholder={
+                  direction === "OUTGOING"
+                    ? "Chọn hoặc nhập bộ phận phát hành"
+                    : "Hành chính"
+                }
+                list={direction === "OUTGOING" ? "issuing-department-options" : undefined}
+                autoComplete="off"
+              />
+              {direction === "OUTGOING" && (
+                <datalist id="issuing-department-options">
+                  {ISSUING_DEPARTMENT_OPTIONS.map((name) => (
+                    <option key={name} value={name} />
+                  ))}
+                </datalist>
+              )}
+            </Field>
+          )}
           <div className="flex items-center sm:col-span-2">
             <label className="flex cursor-pointer items-center gap-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-100">
               <input
@@ -590,7 +666,7 @@ export default function CorrespondenceForm({
           <div>
             <p className="text-sm font-medium text-gray-700">Mức độ bảo mật</p>
             <div className="mt-1.5 flex gap-4 text-sm">
-              {LEVEL_OPTIONS.map((o) => (
+              {SECURITY_OPTIONS.map((o) => (
                 <label
                   key={o.value}
                   className="flex cursor-pointer items-center gap-1.5"
@@ -599,7 +675,7 @@ export default function CorrespondenceForm({
                     type="radio"
                     name="security"
                     checked={v.security_level === o.value}
-                    onChange={() => set("security_level", o.value)}
+                    onChange={() => onSecurityChange(o.value)}
                   />
                   {o.label}
                 </label>
@@ -610,6 +686,14 @@ export default function CorrespondenceForm({
                 </LinkButton>
               )}
             </div>
+            {v.security_level === "HIGH" && (
+              <p className="mt-1.5 text-xs text-amber-700">
+                Bảo mật Cao: tự chia sẻ cho 8 phòng ban mặc định (Ban giám đốc
+                công ty, Ban đầu tư, Phòng kế toán, Hội đồng quản trị, Ban kiểm
+                soát, Phòng tổ chức hành chính, Tổng giám đốc, CT - HĐQT).
+                Có thể sửa danh sách ở phần Chia sẻ.
+              </p>
+            )}
           </div>
           <div>
             <p className="text-sm font-medium text-gray-700">Mức độ khẩn cấp</p>
@@ -756,13 +840,15 @@ export default function CorrespondenceForm({
       <section className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-gray-900">Thời gian</h2>
         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Field label="Ngày ký">
-            <TextInput
-              type="date"
-              value={v.signed_date}
-              onChange={(e) => set("signed_date", e.target.value)}
-            />
-          </Field>
+          {!isIncoming && (
+            <Field label="Ngày ký">
+              <TextInput
+                type="date"
+                value={v.signed_date}
+                onChange={(e) => set("signed_date", e.target.value)}
+              />
+            </Field>
+          )}
           <Field label="Ngày phát hành">
             <TextInput
               type="date"
@@ -770,13 +856,24 @@ export default function CorrespondenceForm({
               onChange={(e) => set("issue_date", e.target.value)}
             />
           </Field>
-          <Field label="Ngày hiệu lực">
-            <TextInput
-              type="date"
-              value={v.effective_date}
-              onChange={(e) => set("effective_date", e.target.value)}
-            />
-          </Field>
+          {isIncoming && (
+            <Field label="Ngày tiếp nhận">
+              <TextInput
+                type="date"
+                value={v.received_date}
+                onChange={(e) => set("received_date", e.target.value)}
+              />
+            </Field>
+          )}
+          {!isIncoming && (
+            <Field label="Ngày hiệu lực">
+              <TextInput
+                type="date"
+                value={v.effective_date}
+                onChange={(e) => set("effective_date", e.target.value)}
+              />
+            </Field>
+          )}
           <Field label="Ngày hết hiệu lực">
             <TextInput
               type="date"
@@ -789,25 +886,27 @@ export default function CorrespondenceForm({
 
       <section className="rounded-lg border border-gray-200 bg-white p-5">
         <h2 className="text-sm font-semibold text-gray-900">
-          Tình trạng xử lý
+          {isIncoming ? "Ghi chú" : "Tình trạng xử lý"}
         </h2>
-        <div className="mt-2 flex flex-wrap gap-4 text-sm">
-          {STATUS_OPTIONS.map((o) => (
-            <label
-              key={o.value}
-              className="flex cursor-pointer items-center gap-1.5"
-            >
-              <input
-                type="radio"
-                name="status"
-                checked={v.processing_status === o.value}
-                onChange={() => set("processing_status", o.value)}
-              />
-              {o.label}
-            </label>
-          ))}
-        </div>
-        <div className="mt-4">
+        {!isIncoming && (
+          <div className="mt-2 flex flex-wrap gap-4 text-sm">
+            {STATUS_OPTIONS.map((o) => (
+              <label
+                key={o.value}
+                className="flex cursor-pointer items-center gap-1.5"
+              >
+                <input
+                  type="radio"
+                  name="status"
+                  checked={v.processing_status === o.value}
+                  onChange={() => set("processing_status", o.value)}
+                />
+                {o.label}
+              </label>
+            ))}
+          </div>
+        )}
+        <div className={isIncoming ? "mt-2" : "mt-4"}>
           <Field label="Ghi chú">
             <TextArea
               rows={3}

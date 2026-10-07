@@ -40,6 +40,7 @@ SORTS = {
     "party": None,  # Sender for incoming documents, recipient otherwise.
     "signer": CorrespondenceDocument.signer,
     "signed_date": CorrespondenceDocument.signed_date,
+    "received_date": CorrespondenceDocument.received_date,
     "issue_date": CorrespondenceDocument.issue_date,
     "processing_status": CorrespondenceDocument.processing_status,
     "created_at": CorrespondenceDocument.created_at,
@@ -373,13 +374,21 @@ def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user
         data = svc._norm_dates(data)
         merged = {c.name: getattr(doc, c.name) for c in doc.__table__.columns if c.name not in ("id",)}
         merged.update(data)
+        # Bao mat Cao => mac dinh pham vi DEPARTMENT + 8 phong ban
+        # (ke ca khi payload chi doi security_level).
+        vis, dept = svc.high_security_sharing(
+            merged.get("security_level"), merged.get("visibility"), merged.get("department"))
+        merged["visibility"], merged["department"] = vis, dept
         errors = svc.validate_payload(db, direction, merged, exclude_id=doc.id)
         if errors:
             raise HTTPException(status_code=400, detail="; ".join(errors))
+        for k in ("visibility", "department"):
+            if k not in data and merged[k] != getattr(doc, k):
+                data[k] = merged[k]
         for k, v in data.items():
             if k in ("attachment_ids", "links"):
                 continue
-            if k in ("recipient", "sender", "signer", "issuing_department", "notes") and isinstance(v, str):
+            if k in ("title", "recipient", "sender", "signer", "issuing_department", "notes") and isinstance(v, str):
                 from app.database.database import normalize_text
                 v = normalize_text(v.strip()) or None
             if k == "visibility" and isinstance(v, str):

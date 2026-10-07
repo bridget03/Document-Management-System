@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Button from "../ui/Button";
 
-export type Preset = "today" | "7d" | "30d" | "month" | "3m" | "12m" | "custom";
+export type Preset = "all" | "today" | "7d" | "30d" | "month" | "3m" | "12m" | "custom";
 
 export interface Range {
   from?: string;
@@ -9,6 +9,7 @@ export interface Range {
 }
 
 const PRESETS: { value: Exclude<Preset, "custom">; label: string }[] = [
+  { value: "all", label: "Tất cả" },
   { value: "today", label: "Hôm nay" },
   { value: "7d", label: "Tuần này" },
   { value: "month", label: "Tháng này" },
@@ -23,6 +24,9 @@ function toISO(d: Date): string {
 export function presetRange(p: Exclude<Preset, "custom">): Range {
   const today = new Date();
   const to = toISO(today);
+  if (p === "all") {
+    return {};
+  }
   if (p === "today") {
     return { from: to, to };
   }
@@ -49,14 +53,23 @@ export default function DateFilter({
   onPreset,
   range,
   onCustom,
+  showPresets = true,
 }: {
   preset: Preset;
   onPreset: (p: Preset) => void;
   range: Range;
   onCustom: (r: Range) => void;
+  /** Ẩn các nút preset, chỉ giữ Từ ngày – Đến ngày + Áp dụng. */
+  showPresets?: boolean;
 }) {
   const [from, setFrom] = useState(range.from || "");
   const [to, setTo] = useState(range.to || "");
+
+  // Đồng bộ ô nhập khi range đổi từ bên ngoài (đổi preset / xóa bộ lọc).
+  useEffect(() => {
+    setFrom(range.from || "");
+    setTo(range.to || "");
+  }, [range.from, range.to]);
 
   return (
     <div
@@ -64,21 +77,22 @@ export default function DateFilter({
       role="group"
       aria-label="Khoảng thời gian"
     >
-      {PRESETS.map((p) => (
-        <Button
-          key={p.value}
-          size="sm"
-          variant={preset === p.value ? "primary" : "secondary"}
-          onClick={() => onPreset(p.value)}
-          className={
-            preset === p.value
-              ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-sm"
-              : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-          }
-        >
-          {p.label}
-        </Button>
-      ))}
+      {showPresets &&
+        PRESETS.map((p) => (
+          <Button
+            key={p.value}
+            size="sm"
+            variant={preset === p.value ? "primary" : "secondary"}
+            onClick={() => onPreset(p.value)}
+            className={
+              preset === p.value
+                ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700 shadow-sm"
+                : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+            }
+          >
+            {p.label}
+          </Button>
+        ))}
       <span className="flex items-center gap-1.5 text-xs text-gray-500">
         <input
           type="date"

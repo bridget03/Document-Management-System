@@ -193,6 +193,9 @@ export default function CorrespondenceDetail({
           </h2>
           <div className="mt-2 divide-y divide-gray-100">
             <InfoRow label="Số văn bản">{data.document_number}</InfoRow>
+            {(direction === "INCOMING" || data.title) && (
+              <InfoRow label="Tiêu đề công văn">{data.title || "—"}</InfoRow>
+            )}
             <InfoRow label="Loại văn bản">
               {data.doc_type
                 ? `${data.doc_type.code} · ${data.doc_type.name}`
@@ -216,30 +219,46 @@ export default function CorrespondenceDetail({
                 "—"
               )}
             </InfoRow>
-            <InfoRow label="Số lượng">{data.quantity ?? "—"}</InfoRow>
-            <InfoRow label="Người ký">{data.signer || "—"}</InfoRow>
+            {direction !== "INCOMING" && (
+              <InfoRow label="Số lượng">{data.quantity ?? "—"}</InfoRow>
+            )}
+            <InfoRow label={direction === "INCOMING" ? "Đơn vị tiếp nhận" : "Người ký"}>
+              {data.signer || "—"}
+            </InfoRow>
             <InfoRow label="Mức độ bảo mật">
               {data.security_level ? LEVEL_LABELS[data.security_level] : "—"}
             </InfoRow>
             <InfoRow label="Mức độ khẩn cấp">
               {data.urgency_level ? LEVEL_LABELS[data.urgency_level] : "—"}
             </InfoRow>
-            <InfoRow label="Ngày ký">{fmtDateVN(data.signed_date)}</InfoRow>
-            <InfoRow label="Ngày hiệu lực">
-              {fmtDateVN(data.effective_date)}
-            </InfoRow>
+            {direction === "INCOMING" ? (
+              <InfoRow label="Ngày tiếp nhận">
+                {fmtDateVN(data.received_date)}
+              </InfoRow>
+            ) : (
+              <InfoRow label="Ngày ký">{fmtDateVN(data.signed_date)}</InfoRow>
+            )}
+            {direction !== "INCOMING" && (
+              <InfoRow label="Ngày hiệu lực">
+                {fmtDateVN(data.effective_date)}
+              </InfoRow>
+            )}
             <InfoRow label="Ngày hết hiệu lực">
               {fmtDateVN(data.expiry_date)}
             </InfoRow>
-            <InfoRow label="Bộ phận phát hành">
-              {data.issuing_department || "—"}
-            </InfoRow>
+            {direction !== "INCOMING" && (
+              <InfoRow label="Bộ phận phát hành">
+                {data.issuing_department || "—"}
+              </InfoRow>
+            )}
             <InfoRow label="Ngày phát hành">
               {fmtDateVN(data.issue_date)}
             </InfoRow>
-            <InfoRow label="Tình trạng xử lý">
-              <Badge tone={st.tone}>{st.label}</Badge>
-            </InfoRow>
+            {direction !== "INCOMING" && (
+              <InfoRow label="Tình trạng xử lý">
+                <Badge tone={st.tone}>{st.label}</Badge>
+              </InfoRow>
+            )}
             <InfoRow label="Mức độ quan trọng">
               {data.is_important ? (
                 <Badge tone="danger">

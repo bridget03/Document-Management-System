@@ -3,6 +3,7 @@ from app.models.category import Category
 from app.models.tag import Tag, document_tags
 from app.models.document import Document
 from app.models.department import Department
+from app.models.receiving_unit import ReceivingUnit
 from app.models.google_drive import GoogleDriveConfig
 from app.models.sync_log import SyncLog
 from app.models.audit_log import AuditLog
@@ -17,5 +18,5 @@ from app.models.correspondence import (
     CorrespondenceFolderItem,
 )
 
-__all__ = ["User", "Category", "Tag", "document_tags", "Document", "Department", "GoogleDriveConfig", "SyncLog", "AuditLog", "GoogleDriveSyncFile",
+__all__ = ["User", "Category", "Tag", "document_tags", "Document", "Department", "ReceivingUnit", "GoogleDriveConfig", "SyncLog", "AuditLog", "GoogleDriveSyncFile",
            "DocumentType", "CorrespondenceNumberConfig", "CorrespondenceDocument", "CorrespondenceAttachment", "CorrespondenceLink", "CorrespondenceFolder", "CorrespondenceFolderItem"]

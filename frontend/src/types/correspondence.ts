@@ -19,7 +19,7 @@ export interface DirectionConfig {
 export const DIRECTION_CONFIG: Record<Direction, DirectionConfig> = {
   INCOMING: {
     api: 'incoming', title: 'Văn bản đến', short: 'đến',
-    partyLabel: 'Nơi gửi *', partyKey: 'sender',
+    partyLabel: 'Đơn vị phát hành *', partyKey: 'sender',
     templateFile: 'Mau_nhap_van_ban_den.xlsx', sampleParty: 'Sở XYZ',
   },
   OUTGOING: {
@@ -66,6 +66,7 @@ export interface CorrDoc {
   id: string;
   direction: string;
   document_number: string;
+  title?: string | null;
   recipient?: string | null;
   sender?: string | null;
   quantity?: number | null;
@@ -73,6 +74,7 @@ export interface CorrDoc {
   security_level?: string | null;
   urgency_level?: string | null;
   signed_date?: string | null;
+  received_date?: string | null;
   effective_date?: string | null;
   expiry_date?: string | null;
   issuing_department?: string | null;
@@ -113,6 +115,24 @@ export const LEVEL_OPTIONS = [
   { value: 'LOW', label: 'Thấp' },
   { value: 'MEDIUM', label: 'Trung bình' },
   { value: 'HIGH', label: 'Cao' },
+];
+
+/** Mức độ BẢO MẬT chỉ còn Thấp / Cao (MEDIUM giữ lại để hiển thị dữ liệu cũ). */
+export const SECURITY_OPTIONS = [
+  { value: 'LOW', label: 'Thấp' },
+  { value: 'HIGH', label: 'Cao' },
+];
+
+/** Công văn bảo mật Cao mặc định chia sẻ cho 8 phòng ban này. */
+export const HIGH_SECURITY_DEPARTMENTS: string[] = [
+  'Ban giám đốc công ty',
+  'Ban đầu tư',
+  'Phòng kế toán',
+  'Hội đồng quản trị',
+  'Ban kiểm soát',
+  'Phòng tổ chức hành chính',
+  'Tổng giám đốc',
+  'CT - HĐQT',
 ];
 
 export const VISIBILITY_OPTIONS = [
@@ -212,6 +232,7 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
     return s.slice(0, 10);
   };
   out.document_number = str(byKey.document_number);
+  out.title = str(raw['Tiêu đề công văn']);
   // Nơi nhận/nơi gửi/phòng ban: chấp nhận phẩy (,), chấm phẩy (;) hoặc
   // xuống dòng, chuẩn hoá về dạng lưu trữ "A; B; C".
   const multi = (v: unknown) => {
@@ -236,6 +257,7 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
     out.urgency_level = VI_LEVEL[key] || String(byKey.urgency_level).trim().toUpperCase();
   }
   out.signed_date = dt(byKey.signed_date);
+  out.received_date = dt(raw['Ngày tiếp nhận']);
   out.effective_date = dt(byKey.effective_date);
   out.expiry_date = dt(byKey.expiry_date);
   out.issuing_department = str(byKey.issuing_department);
@@ -258,10 +280,10 @@ export function validateRowClient(data: Record<string, unknown>, direction: Dire
   if (!data.document_number) errs.push('Số văn bản không được để trống.');
   if (direction !== 'INCOMING' && !data.recipient)
     errs.push(direction === 'INTERNAL' ? 'Bộ phận/người nhận không được để trống.' : 'Nơi nhận không được để trống.');
-  if (direction === 'INCOMING' && !data.sender) errs.push('Nơi gửi không được để trống.');
-  if (!data.signer) errs.push('Vui lòng chọn/nhập người ký.');
+  if (direction === 'INCOMING' && !data.sender) errs.push('Đơn vị phát hành không được để trống.');
+  if (!data.signer) errs.push(direction === 'INCOMING' ? 'Vui lòng nhập đơn vị tiếp nhận.' : 'Vui lòng chọn/nhập người ký.');
   if (!data.document_type_id) errs.push('Vui lòng chọn loại văn bản.');
-  if (!data.issuing_department) errs.push('Vui lòng nhập bộ phận phát hành.');
+  if (direction !== 'INCOMING' && !data.issuing_department) errs.push('Vui lòng nhập bộ phận phát hành.');
   return errs;
 }
 

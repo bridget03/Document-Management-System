@@ -16,6 +16,7 @@ import {
   Settings,
   Users,
   ScrollText,
+  Landmark,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import { IconButton } from "../ui/Button";
@@ -86,6 +87,11 @@ const groups: {
         to: "/departments",
         label: "Phòng ban",
         icon: <Building size={17} />,
+      },
+      {
+        to: "/receiving-units",
+        label: "Đơn vị tiếp nhận",
+        icon: <Landmark size={17} />,
       },
       {
         to: "/correspondence/settings",
