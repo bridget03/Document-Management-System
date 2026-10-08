@@ -29,12 +29,13 @@ import Modal from "../components/ui/Modal";
 import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import { useAuthStore } from "../stores/authStore";
-import CorrespondenceTable, {
-  type CorrSortKey,
-  type SortOrder,
+import type {
+  CorrSortKey,
+  SortOrder,
 } from "../components/correspondence/CorrespondenceTable";
 import IncomingTable from "../components/correspondence/IncomingTable";
 import OutgoingTable from "../components/correspondence/OutgoingTable";
+import InternalTable from "../components/correspondence/InternalTable";
 import ExcelImportModal from "../components/correspondence/ExcelImportModal";
 import {
   DIRECTION_CONFIG,
@@ -332,9 +333,8 @@ export default function CorrespondenceList({
               onSort={handleSort}
             />
           ) : (
-            <CorrespondenceTable
+            <InternalTable
               items={data?.items || []}
-              dir={direction}
               base={base}
               onDelete={(d) => setDel(d)}
               sortBy={sortBy}

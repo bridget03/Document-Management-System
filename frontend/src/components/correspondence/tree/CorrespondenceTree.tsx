@@ -61,7 +61,7 @@ export default function CorrespondenceTree({
       .reduce((s, i) => s + i.count, 0);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 px-1 pb-2">
         <FolderOpen size={16} className="shrink-0 text-brand-700" />
         <span className="text-sm font-semibold text-gray-900">{rootLabel}</span>

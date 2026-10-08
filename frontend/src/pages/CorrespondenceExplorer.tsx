@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Clock,
   Menu,
   Plus,
   RefreshCw,
@@ -34,7 +35,6 @@ import { Select } from "../components/ui/Input";
 import { useToast } from "../components/ui/Toast";
 import { useAuthStore } from "../stores/authStore";
 import CorrespondenceTree, {
-  TREE_DIRECTIONS,
   type TreeSelection,
 } from "../components/correspondence/tree/CorrespondenceTree";
 import DateFilter, {
@@ -42,12 +42,13 @@ import DateFilter, {
   type Preset,
   type Range,
 } from "../components/dashboard/DateFilter";
-import CorrespondenceTable, {
-  type CorrSortKey,
-  type SortOrder,
+import type {
+  CorrSortKey,
+  SortOrder,
 } from "../components/correspondence/CorrespondenceTable";
 import IncomingTable from "../components/correspondence/IncomingTable";
 import OutgoingTable from "../components/correspondence/OutgoingTable";
+import InternalTable from "../components/correspondence/InternalTable";
 import ExcelImportModal from "../components/correspondence/ExcelImportModal";
 import {
   DIRECTION_CONFIG,
@@ -170,44 +171,9 @@ export default function CorrespondenceExplorer({
     [visibleItems],
   );
 
-  // Default: năm mới nhất -> loại (sidebar khóa sẵn hoặc INCOMING) -> tháng hiện tại (fallback tháng gần nhất).
-  useEffect(() => {
-    if (treeLoading || treeItems.length === 0) return;
-    if (selection.year && direction) return;
-    const pool = fixedDirection
-      ? treeItems.filter((i) => i.direction === fixedDirection)
-      : treeItems;
-    if (pool.length === 0) return;
-    const years = [...new Set(pool.map((i) => i.year))].sort((a, b) => b - a);
-    const y = years[0];
-    const dirs = TREE_DIRECTIONS.map((t) => t.dir).filter((d) =>
-      pool.some((i) => i.year === y && i.direction === d),
-    );
-    const d =
-      fixedDirection ?? (dirs.includes("INCOMING") ? "INCOMING" : dirs[0]);
-    const months = treeItems
-      .filter((i) => i.year === y && i.direction === d)
-      .map((i) => i.month)
-      .sort((a, b) => a - b);
-    const cur = new Date().getMonth() + 1;
-    const m = months.includes(cur) ? cur : (months[months.length - 1] ?? null);
-    const next = { year: y, direction: d, month: m };
-    setSelection(next);
-    setExpandedYears(new Set([y]));
-    setExpandedTypes(new Set([`${y}-${d}`]));
-    setSearchParams(
-      (prev) => {
-        const p = new URLSearchParams(prev);
-        p.set("year", String(y));
-        p.set("direction", d);
-        if (m) p.set("month", String(m));
-        else p.delete("month");
-        return p;
-      },
-      { replace: true },
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [treeLoading, treeItems.length]);
+  // Vào module: hiện ngay danh sách mới thêm gần đây (không ép chọn cây).
+  // User bấm node nào trên cây thì lọc theo node đó; nút "Mới thêm gần
+  // đây" quay lại chế độ mặc định.
 
   // Sync khi Back/Forward. Khi sidebar đã khóa loại thì bỏ qua direction trên URL.
   useEffect(() => {
@@ -264,6 +230,26 @@ export default function CorrespondenceExplorer({
     setSidebarOpen(false);
   };
 
+  // Về chế độ mặc định: danh sách mới thêm gần đây (không lọc cây).
+  const showRecent = () => {
+    setSelection({
+      year: null,
+      direction: fixedDirection ?? selection.direction,
+      month: null,
+    });
+    setPage(1);
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        p.delete("year");
+        p.delete("month");
+        return p;
+      },
+      { replace: true },
+    );
+    setSidebarOpen(false);
+  };
+
   const toggleYear = (y: number) =>
     setExpandedYears((s) => {
       const n = new Set(s);
@@ -286,12 +272,13 @@ export default function CorrespondenceExplorer({
   });
 
   // ---- Doc list theo node thời gian ----
-  // Loc ngay kieu dashboard (mac dinh "Tat ca" = theo thang dang chon tren cay).
-  // Khi user chon khoang ngay, lay giao voi thang cua cay.
+  // Chưa chọn cây: hiện văn bản mới thêm gần đây (sắp theo ngày tạo).
+  // Đã chọn cây: lọc theo tháng + sắp theo lựa chọn của user.
   const range =
     selection.year && selection.direction
       ? monthRange(selection.year, selection.month)
       : null;
+  const hasSelection = !!range;
   const [datePreset, setDatePreset] = useState<Preset>("all");
   const [dateRange, setDateRange] = useState<Range>({});
   const effDateFrom = [range?.date_from, dateRange.from]
@@ -315,14 +302,14 @@ export default function CorrespondenceExplorer({
     queryKey: [
       "corr",
       direction,
-      selection.year,
-      selection.month,
+      hasSelection ? selection.year : null,
+      hasSelection ? selection.month : null,
       searchQuery,
       typeId,
       signer,
       effScope,
-      sortBy,
-      sortOrder,
+      hasSelection ? sortBy : "recent",
+      hasSelection ? sortOrder : "desc",
       page,
       importantOnly,
       effDateFrom,
@@ -337,12 +324,12 @@ export default function CorrespondenceExplorer({
         is_important: importantOnly ? true : undefined,
         date_from: effDateFrom,
         date_to: effDateTo,
-        sort_by: sortBy,
-        sort_order: sortOrder,
+        sort_by: hasSelection ? sortBy : "created_at",
+        sort_order: hasSelection ? sortOrder : "desc",
         page,
         page_size: 20,
       }),
-    enabled: !!apiDir && !!range,
+    enabled: !!apiDir,
     placeholderData: keepPreviousData,
   });
 
@@ -384,7 +371,9 @@ export default function CorrespondenceExplorer({
       ? `${TYPE_LABEL[direction]} — Tháng ${selection.month}/${selection.year}`
       : selection.year && direction
         ? `${TYPE_LABEL[direction]} — Năm ${selection.year}`
-        : pageTitle;
+        : direction
+          ? `${TYPE_LABEL[direction]} — Mới thêm gần đây`
+          : pageTitle;
   const breadcrumb = fixedDirection
     ? [
         TYPE_LABEL[fixedDirection],
@@ -474,7 +463,20 @@ export default function CorrespondenceExplorer({
                   </IconButton>
                 </span>
               </div>
-              <div className="min-h-0 flex-1">
+              <div className="flex min-h-0 flex-1 flex-col">
+                <button
+                  type="button"
+                  onClick={showRecent}
+                  aria-current={!hasSelection}
+                  className={`mb-1.5 flex w-full shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-xs font-medium ${
+                    !hasSelection
+                      ? "bg-brand-50 text-brand-700"
+                      : "text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  <Clock size={14} className="shrink-0" />
+                  <span className="truncate">Mới thêm gần đây</span>
+                </button>
                 {treeLoading ? (
                   <p className="px-2 py-3 text-xs text-gray-500">
                     Đang tải cây...
@@ -520,7 +522,7 @@ export default function CorrespondenceExplorer({
           aria-label="Danh sách công văn"
           className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-200 bg-white"
         >
-          {!direction || !range ? (
+          {!direction ? (
             <div className="flex flex-1 items-center justify-center p-8 text-center">
               <div>
                 <p className="font-semibold text-gray-900">
@@ -695,7 +697,9 @@ export default function CorrespondenceExplorer({
                       ? "Hãy thử thay đổi từ khóa hoặc bộ lọc."
                       : selection.month
                         ? `Không có ${TYPE_LABEL[direction!].toLowerCase()} trong tháng ${selection.month}/${selection.year}.`
-                        : `Không có ${TYPE_LABEL[direction!].toLowerCase()} trong năm ${selection.year}.`
+                        : selection.year
+                          ? `Không có ${TYPE_LABEL[direction!].toLowerCase()} trong năm ${selection.year}.`
+                          : `Chưa có ${TYPE_LABEL[direction!].toLowerCase()} nào.`
                   }
                   actionLabel={
                     searchQuery || filterCount > 0
@@ -733,9 +737,8 @@ export default function CorrespondenceExplorer({
                       onSort={handleSort}
                     />
                   ) : (
-                    <CorrespondenceTable
+                    <InternalTable
                       items={data?.items || []}
-                      dir={direction!}
                       base={base}
                       onDelete={(d) => setDel(d)}
                       sortBy={sortBy}
