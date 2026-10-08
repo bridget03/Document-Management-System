@@ -10,8 +10,12 @@ import { useToast } from "../ui/Toast";
 import { corrImport, listDocTypes } from "../../services/correspondenceApi";
 import { listDepartments } from "../../services/departmentApi";
 import type { Department } from "../../types/department";
+import { listReceivingUnits } from "../../services/receivingUnitApi";
+import type { ReceivingUnit } from "../../types/receivingUnit";
 import {
-  EXCEL_HEADERS,
+  TEMPLATE_HEADERS,
+  TEMPLATE_REQUIRED,
+  ISSUING_DEPARTMENT_OPTIONS,
   normalizeExcelRow,
   validateRowClient,
   DIRECTION_CONFIG,
@@ -35,59 +39,39 @@ interface ParsedRow {
 
 const MAX_ROWS = 500;
 
-function downloadTemplate(direction: Direction, deptNames: string[]) {
+function downloadTemplate(
+  direction: Direction,
+  lists: { deptNames: string[]; unitNames: string[]; typeCodes: string[] },
+) {
+  const { deptNames, unitNames, typeCodes } = lists;
   const cfg = DIRECTION_CONFIG[direction];
-  // Template nội bộ dùng cột "Bộ phận/người nhận" thay cho "Nơi nhận".
-  const baseHeaders = EXCEL_HEADERS.map((h) =>
-    h.header === "Nơi nhận" && direction === "INTERNAL"
-      ? "Bộ phận/người nhận"
-      : h.header,
-  );
-  // Template đến: thêm cột "Tiêu đề công văn" (sau Số văn bản) và
-  // "Ngày tiếp nhận" (sau Ngày ký). Template đi: thêm "Tiêu đề công văn"
-  // và "Phòng ban phát hành". Cột mới là optional — file Excel cũ
-  // thiếu chúng vẫn import được (chỉ EXCEL_HEADERS là bắt buộc).
-  const headers = [...baseHeaders];
-  if (direction === "INCOMING") {
-    headers.splice(1, 0, "Tiêu đề công văn");
-    const kyIdx = headers.indexOf("Ngày ký");
-    if (kyIdx >= 0) headers.splice(kyIdx + 1, 0, "Ngày tiếp nhận");
-    else headers.push("Ngày tiếp nhận");
-  }
-  if (direction === "OUTGOING") {
-    headers.splice(1, 0, "Tiêu đề công văn");
-    const bpIdx = headers.indexOf("Bộ phận phát hành");
-    if (bpIdx >= 0) headers.splice(bpIdx + 1, 0, "Phòng ban phát hành");
-    else headers.push("Phòng ban phát hành");
-  }
-  // Văn bản đi: dòng mẫu dùng luôn phòng ban đầu tiên trong danh mục.
-  // Mẫu ghi 2 nơi nhận cách nhau dấu phẩy để minh họa nhập nhiều nơi.
-  const outgoingSample =
-    direction === "OUTGOING" && deptNames.length > 0
-      ? deptNames.slice(0, 2).join(", ")
-      : cfg.sampleParty;
+  const headers = TEMPLATE_HEADERS[direction];
   const sample: Record<string, unknown> = {
     "Số văn bản": "CV001/2026/VICENZA",
-    "Tiêu đề công văn": direction === "INTERNAL" ? undefined : "V/v nghỉ lễ Quốc khánh",
-    "Nơi nhận": direction === "INCOMING" ? undefined : outgoingSample,
-    "Bộ phận/người nhận":
-      direction === "INTERNAL" ? cfg.sampleParty : undefined,
-    "Nơi gửi": direction === "INCOMING" ? cfg.sampleParty : undefined,
-    "Số lượng văn bản": 1,
-    "Người ký": direction === "INCOMING" ? "Phòng Hành chính" : undefined,
+    "Tiêu đề công văn": "V/v nghỉ lễ Quốc khánh",
+    "Đơn vị phát hành":
+      direction === "INCOMING"
+        ? cfg.sampleParty
+        : (ISSUING_DEPARTMENT_OPTIONS[0] ?? "Hành chính"),
+    "Nơi gửi": cfg.sampleParty,
+    "Bộ phận/người nhận": deptNames[0] ?? cfg.sampleParty,
+    // Mẫu ghi 2 nơi nhận cách nhau dấu phẩy để minh họa nhập nhiều nơi.
+    "Nơi nhận":
+      direction === "OUTGOING" && deptNames.length > 0
+        ? deptNames.slice(0, 2).join(", ")
+        : undefined,
+    "Đơn vị tiếp nhận": unitNames[0] ?? "Phòng Hành chính",
+    "Người ký": unitNames[0] ?? "Phòng Hành chính",
+    "Loại văn bản": typeCodes[0] ?? "CV01",
     "Mức độ bảo mật": "Thấp",
     "Ngày ký": "17/09/2026",
-    "Ngày tiếp nhận": direction === "INCOMING" ? "18/09/2026" : undefined,
-    "Mức độ khẩn cấp": "Thấp",
+    "Ngày phát hành": "17/09/2026",
+    "Ngày tiếp nhận": "18/09/2026",
     "Ngày hiệu lực": "17/09/2026",
     "Ngày hết hiệu lực": "",
-    "Bộ phận phát hành": "Hành chính",
-    "Phòng ban phát hành": direction === "OUTGOING" ? "Phòng Kế toán" : undefined,
-    "Ngày phát hành": "17/09/2026",
-    "Loại văn bản": "CV01",
-    "Tình trạng xử lý": "Dự thảo",
+    "Bộ phận phát hành": ISSUING_DEPARTMENT_OPTIONS[0] ?? "Hành chính",
+    "Phòng ban phát hành": deptNames[0] ?? "Phòng Kế toán",
     "Ghi chú": "",
-    "Liên kết tệp": "",
   };
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("VanBan");
@@ -96,27 +80,60 @@ function downloadTemplate(direction: Direction, deptNames: string[]) {
   ws.columns = headers.map(() => ({ width: 22 }));
   ws.getRow(1).font = { bold: true };
 
-  // Văn bản đi: cột Nơi nhận có dropdown từ danh mục phòng ban
-  // (Cấu hình → Phòng ban). Danh mục nằm ở sheet phụ ẩn "DanhMuc".
-  // Tắt popup báo lỗi để vẫn gõ tay được nhiều nơi cách nhau dấu phẩy.
+  // Dropdown trong file mẫu (danh mục ở sheet phụ ẩn "DanhMuc",
+  // popup báo lỗi tắt để vẫn gõ tay được).
   // Excel .xlsx không chọn nhiều giá trị trong 1 dropdown được (cần macro
-  // VBA) nên gắn thêm ghi chú hướng dẫn ngay trên ô tiêu đề.
-  if (direction === "OUTGOING" && deptNames.length > 0) {
-    const ref = wb.addWorksheet("DanhMuc");
-    ref.state = "hidden";
-    ref.getColumn(1).values = ["Phòng ban", ...deptNames];
-    const colIdx = headers.indexOf("Nơi nhận") + 1;
-    const lastRow = deptNames.length + 1;
-    ws.getCell(1, colIdx).note =
-      "Chọn 1 nơi nhận từ dropdown. Nhiều nơi thì gõ thêm, cách nhau bằng dấu phẩy — VD: Kế toán, Nhân sự.";
+  // VBA) nên cột nhiều nơi nhận kèm thêm ghi chú hướng dẫn.
+  const dropdown = (
+    header: string,
+    values: string[],
+    col: number,
+    note?: string,
+  ) => {
+    if (values.length === 0) return;
+    const colIdx = headers.indexOf(header) + 1;
+    if (colIdx < 1) return;
+    let ref = wb.getWorksheet("DanhMuc");
+    if (!ref) {
+      ref = wb.addWorksheet("DanhMuc");
+      ref.state = "hidden";
+    }
+    ref.getColumn(col).values = ["Danh mục", ...values];
+    const colLetter = String.fromCharCode(64 + col);
+    const lastRow = values.length + 1;
+    if (note) ws.getCell(1, colIdx).note = note;
     for (let r = 2; r <= 500; r++) {
       ws.getCell(r, colIdx).dataValidation = {
         type: "list",
         allowBlank: true,
         showErrorMessage: false,
-        formulae: [`DanhMuc!$A$2:$A$${lastRow}`],
+        formulae: [`DanhMuc!$${colLetter}$2:$${colLetter}$${lastRow}`],
       };
     }
+  };
+
+  if (direction === "INCOMING") {
+    dropdown("Đơn vị tiếp nhận", unitNames, 2, "Chọn đơn vị tiếp nhận từ dropdown.");
+    dropdown("Loại văn bản", typeCodes, 4);
+    dropdown("Mức độ bảo mật", ["Thấp", "Cao"], 5);
+  }
+  if (direction === "OUTGOING") {
+    dropdown(
+      "Nơi nhận",
+      deptNames,
+      1,
+      "Chọn 1 nơi nhận từ dropdown. Nhiều nơi thì gõ thêm, cách nhau bằng dấu phẩy — VD: Kế toán, Nhân sự.",
+    );
+    dropdown("Đơn vị phát hành", [...ISSUING_DEPARTMENT_OPTIONS], 3);
+    dropdown("Phòng ban phát hành", deptNames, 1);
+    dropdown("Loại văn bản", typeCodes, 4);
+    dropdown("Mức độ bảo mật", ["Thấp", "Cao"], 5);
+  }
+  if (direction === "INTERNAL") {
+    dropdown("Bộ phận/người nhận", deptNames, 1);
+    dropdown("Đơn vị phát hành", [...ISSUING_DEPARTMENT_OPTIONS], 3);
+    dropdown("Loại văn bản", typeCodes, 4);
+    dropdown("Mức độ bảo mật", ["Thấp", "Cao"], 5);
   }
 
   return wb.xlsx.writeBuffer().then((buf) => {
@@ -150,7 +167,7 @@ export default function ExcelImportModal({
     failed: number;
     errors: { row: number; errors: string[] }[];
   } | null>(null);
-  const { data: types } = useQuery<DocType[]>({
+  const { data: types, refetch: refetchTypes } = useQuery<DocType[]>({
     queryKey: ["corr-types-active"],
     queryFn: () => listDocTypes(true),
     enabled: open,
@@ -158,6 +175,11 @@ export default function ExcelImportModal({
   const { data: departments, refetch: refetchDepts } = useQuery<Department[]>({
     queryKey: ["departments-active"],
     queryFn: () => listDepartments(true),
+    enabled: open,
+  });
+  const { data: receivingUnits, refetch: refetchUnits } = useQuery<ReceivingUnit[]>({
+    queryKey: ["receiving-units-active"],
+    queryFn: () => listReceivingUnits(true),
     enabled: open,
   });
 
@@ -201,11 +223,14 @@ export default function ExcelImportModal({
         toast("error", `File vượt quá ${MAX_ROWS} dòng.`);
         return;
       }
-      const expected = EXCEL_HEADERS.map((h) => h.header);
+      // Chỉ yêu cầu các cột bắt buộc của mẫu mới (chấp nhận tên cột cũ).
+      const required = TEMPLATE_REQUIRED[direction];
       const actual = Object.keys(json[0] || {});
-      const missing = expected.filter((h) => !actual.includes(h));
+      const missing = required.filter(
+        (alts) => !alts.some((h) => actual.includes(h)),
+      );
       if (missing.length > 0) {
-        toast("error", `Thiếu cột: ${missing.join(", ")}`);
+        toast("error", `Thiếu cột: ${missing.map((a) => a[0]).join(", ")}`);
         return;
       }
       const parsed: ParsedRow[] = json.map((raw, i) => {
@@ -329,12 +354,13 @@ export default function ExcelImportModal({
             onClick={() => {
               // Lấy danh mục mới nhất từ server ngay lúc bấm tải,
               // đề phòng danh sách cache từ lúc mở modal đã cũ.
-              refetchDepts()
-                .then(({ data }) =>
-                  downloadTemplate(
-                    direction,
-                    (data || []).map((d) => d.name),
-                  ),
+              Promise.all([refetchDepts(), refetchUnits(), refetchTypes()])
+                .then(([d, u, t]) =>
+                  downloadTemplate(direction, {
+                    deptNames: (d.data || []).map((x) => x.name),
+                    unitNames: (u.data || []).map((x) => x.name),
+                    typeCodes: (t.data || []).map((x) => x.code),
+                  }),
                 )
                 .catch(() =>
                   toast("error", "Không tạo được file mẫu Excel."),

@@ -176,25 +176,47 @@ export const ISSUING_DEPARTMENT_OPTIONS: string[] = [
   'Công ty cổ phần tập đoàn công nghiệp Kingspalace',
 ];
 
-/** Excel Vietnamese header -> field key (import + template). */
-export const EXCEL_HEADERS: { header: string; key: string }[] = [
-  { header: 'Số văn bản', key: 'document_number' },
-  { header: 'Nơi nhận', key: 'recipient' },
-  { header: 'Nơi gửi', key: 'sender' },
-  { header: 'Số lượng văn bản', key: 'quantity' },
-  { header: 'Người ký', key: 'signer' },
-  { header: 'Mức độ bảo mật', key: 'security_level' },
-  { header: 'Ngày ký', key: 'signed_date' },
-  { header: 'Mức độ khẩn cấp', key: 'urgency_level' },
-  { header: 'Ngày hiệu lực', key: 'effective_date' },
-  { header: 'Ngày hết hiệu lực', key: 'expiry_date' },
-  { header: 'Bộ phận phát hành', key: 'issuing_department' },
-  { header: 'Ngày phát hành', key: 'issue_date' },
-  { header: 'Loại văn bản', key: 'document_type' },
-  { header: 'Tình trạng xử lý', key: 'processing_status' },
-  { header: 'Ghi chú', key: 'notes' },
-  { header: 'Liên kết tệp', key: 'link_url' },
-];
+/** Bộ cột file mẫu Excel theo từng loại công văn (đúng thứ tự). */
+export const TEMPLATE_HEADERS: Record<Direction, string[]> = {
+  INCOMING: [
+    'Số văn bản', 'Tiêu đề công văn', 'Đơn vị phát hành', 'Đơn vị tiếp nhận',
+    'Loại văn bản', 'Mức độ bảo mật', 'Ngày phát hành', 'Ngày tiếp nhận',
+    'Ngày hết hiệu lực', 'Ghi chú',
+  ],
+  OUTGOING: [
+    'Số văn bản', 'Tiêu đề công văn', 'Nơi nhận', 'Loại văn bản',
+    'Đơn vị phát hành', 'Phòng ban phát hành', 'Mức độ bảo mật', 'Ngày ký',
+    'Ngày phát hành', 'Ngày hiệu lực', 'Ngày hết hiệu lực', 'Ghi chú',
+  ],
+  INTERNAL: [
+    'Số văn bản', 'Tiêu đề công văn', 'Bộ phận/người nhận', 'Đơn vị phát hành',
+    'Loại văn bản', 'Mức độ bảo mật', 'Ngày ký', 'Ngày phát hành',
+    'Ngày hiệu lực', 'Ngày hết hiệu lực', 'Ghi chú',
+  ],
+};
+
+/** Cột bắt buộc khi upload (mỗi mục là các tên chấp nhận được: tên mới
+ *  trước, tên cũ sau — file Excel cũ vẫn import được). */
+export const TEMPLATE_REQUIRED: Record<Direction, string[][]> = {
+  INCOMING: [
+    ['Số văn bản'],
+    ['Đơn vị phát hành', 'Nơi gửi'],
+    ['Đơn vị tiếp nhận', 'Người ký'],
+    ['Loại văn bản'],
+  ],
+  OUTGOING: [
+    ['Số văn bản'],
+    ['Nơi nhận'],
+    ['Loại văn bản'],
+    ['Đơn vị phát hành', 'Bộ phận phát hành'],
+  ],
+  INTERNAL: [
+    ['Số văn bản'],
+    ['Bộ phận/người nhận', 'Nơi nhận'],
+    ['Đơn vị phát hành', 'Bộ phận phát hành'],
+    ['Loại văn bản'],
+  ],
+};
 
 const VI_LEVEL: Record<string, string> = {
   'thấp': 'LOW', 'thap': 'LOW',
@@ -213,18 +235,16 @@ function normVi(s: string): string {
   return s.normalize('NFC').trim().toLowerCase();
 }
 
-/** Normalize one Excel row (by header) into API field shape. */
+/** Normalize one Excel row (by header, new + legacy names) into API field shape. */
 export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direction): Record<string, unknown> {
-  const byKey: Record<string, unknown> = {};
-  for (const { header, key } of EXCEL_HEADERS) {
-    const v = raw[header];
-    if (v !== undefined && v !== null && String(v).trim() !== '') byKey[key] = v;
-  }
-  // Alias cho template nội bộ: "Bộ phận/người nhận" -> recipient.
-  const alias = raw['Bộ phận/người nhận'];
-  if (byKey.recipient === undefined && alias !== undefined && alias !== null && String(alias).trim() !== '') {
-    byKey.recipient = alias;
-  }
+  // Lấy ô đầu tiên khác rỗng trong danh sách tên cột (tên mới trước, tên cũ sau).
+  const pick = (...names: string[]): unknown => {
+    for (const n of names) {
+      const v = raw[n];
+      if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return undefined;
+  };
   const out: Record<string, unknown> = {};
   const str = (v: unknown) => (v === undefined || v === null ? undefined : String(v).trim() || undefined);
   const num = (v: unknown) => {
@@ -240,8 +260,8 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
     if (m) return `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
     return s.slice(0, 10);
   };
-  out.document_number = str(byKey.document_number);
-  out.title = str(raw['Tiêu đề công văn']);
+  out.document_number = str(pick('Số văn bản'));
+  out.title = str(pick('Tiêu đề công văn'));
   // Nơi nhận/nơi gửi/phòng ban: chấp nhận phẩy (,), chấm phẩy (;) hoặc
   // xuống dòng, chuẩn hoá về dạng lưu trữ "A; B; C".
   const multi = (v: unknown) => {
@@ -253,32 +273,37 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
       .filter(Boolean);
     return list.length > 0 ? list.join('; ') : undefined;
   };
-  out.recipient = multi(byKey.recipient);
-  out.sender = multi(byKey.sender);
-  out.quantity = num(byKey.quantity);
-  out.signer = str(byKey.signer);
-  if (byKey.security_level !== undefined) {
-    const key = normVi(String(byKey.security_level));
-    out.security_level = VI_LEVEL[key] || String(byKey.security_level).trim().toUpperCase();
+  out.recipient = multi(pick('Nơi nhận', 'Bộ phận/người nhận'));
+  // "Đơn vị phát hành" là sender (đến) hoặc đơn vị phát hành (đi/nội bộ).
+  out.sender = direction === 'INCOMING'
+    ? multi(pick('Đơn vị phát hành', 'Nơi gửi'))
+    : multi(pick('Nơi gửi'));
+  out.quantity = num(pick('Số lượng văn bản'));
+  out.signer = str(pick('Đơn vị tiếp nhận', 'Người ký'));
+  if (pick('Mức độ bảo mật') !== undefined) {
+    const key = normVi(String(pick('Mức độ bảo mật')));
+    out.security_level = VI_LEVEL[key] || String(pick('Mức độ bảo mật')).trim().toUpperCase();
   }
-  if (byKey.urgency_level !== undefined) {
-    const key = normVi(String(byKey.urgency_level));
-    out.urgency_level = VI_LEVEL[key] || String(byKey.urgency_level).trim().toUpperCase();
+  if (pick('Mức độ khẩn cấp') !== undefined) {
+    const key = normVi(String(pick('Mức độ khẩn cấp')));
+    out.urgency_level = VI_LEVEL[key] || String(pick('Mức độ khẩn cấp')).trim().toUpperCase();
   }
-  out.signed_date = dt(byKey.signed_date);
-  out.received_date = dt(raw['Ngày tiếp nhận']);
-  out.effective_date = dt(byKey.effective_date);
-  out.expiry_date = dt(byKey.expiry_date);
-  out.issuing_department = str(byKey.issuing_department);
-  out.issuing_office = str(raw['Phòng ban phát hành']);
-  out.issue_date = dt(byKey.issue_date);
-  out.document_type = str(byKey.document_type);
-  if (byKey.processing_status !== undefined) {
-    const key = normVi(String(byKey.processing_status));
-    out.processing_status = VI_STATUS[key] || String(byKey.processing_status).trim().toUpperCase();
+  out.signed_date = dt(pick('Ngày ký'));
+  out.received_date = dt(pick('Ngày tiếp nhận'));
+  out.effective_date = dt(pick('Ngày hiệu lực'));
+  out.expiry_date = dt(pick('Ngày hết hiệu lực'));
+  out.issuing_department = direction === 'INCOMING'
+    ? undefined
+    : str(pick('Đơn vị phát hành', 'Bộ phận phát hành'));
+  out.issuing_office = str(pick('Phòng ban phát hành'));
+  out.issue_date = dt(pick('Ngày phát hành'));
+  out.document_type = str(pick('Loại văn bản'));
+  if (pick('Tình trạng xử lý') !== undefined) {
+    const key = normVi(String(pick('Tình trạng xử lý')));
+    out.processing_status = VI_STATUS[key] || String(pick('Tình trạng xử lý')).trim().toUpperCase();
   }
-  out.notes = str(byKey.notes);
-  const linkUrl = str(byKey.link_url);
+  out.notes = str(pick('Ghi chú'));
+  const linkUrl = str(pick('Liên kết tệp'));
   if (linkUrl) out.links = [{ name: 'Liên kết tệp', url: linkUrl }];
   // Drop undefined keys so the payload stays clean.
   return Object.fromEntries(Object.entries(out).filter(([, v]) => v !== undefined));
