@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, X, Link2, FileUp } from "lucide-react";
 import Button from "../ui/Button";
 import { IconButton, LinkButton } from "../ui/Button";
+import DepartmentMultiInput, {
+  type DepartmentMultiInputRef,
+} from "../ui/DepartmentMultiInput";
 import { TextInput, TextArea, Select, Field } from "../ui/Input";
 import { useToast } from "../ui/Toast";
 import { uploadDocument } from "../../services/documentApi";
@@ -150,6 +153,7 @@ export default function CorrespondenceForm({
   const [linkName, setLinkName] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [partyInput, setPartyInput] = useState("");
+  const recipientRef = useRef<DepartmentMultiInputRef>(null);
   const [deptInput, setDeptInput] = useState("");
   const [uploading, setUploading] = useState(false);
   const { data: types } = useQuery<DocType[]>({
@@ -291,12 +295,6 @@ export default function CorrespondenceForm({
       : [...ISSUING_DEPARTMENT_OPTIONS];
   // Dropdown "Phòng ban phát hành" (văn bản đi) dùng danh mục phòng ban.
   const officeOptions = (deptOptions || []).map((d) => d.name);
-  // Dropdown đơn vị nhận (văn bản nội bộ), giữ giá trị cũ nếu không còn
-  // trong danh mục để không mất dữ liệu khi sửa.
-  const internalRecipientOptions =
-    v.recipient && !officeOptions.includes(v.recipient)
-      ? [...officeOptions, v.recipient]
-      : officeOptions;
 
   // Phòng ban đã khai báo (Cấu hình → Phòng ban) chưa được chọn.
   const deptAdded = new Set(deptList.map((s) => s.toLowerCase()));
@@ -406,6 +404,24 @@ export default function CorrespondenceForm({
         sender: v.sender.trim(),
       };
     }
+    if (direction === "INTERNAL") {
+      // Gộp đơn vị nhận đang gõ dở trong ô nhiều phòng ban (nếu quên Enter).
+      const pendingUnits = (recipientRef.current?.pending() || "")
+        .split(/[;,\n]+/)
+        .map((t) => t.trim())
+        .filter(Boolean);
+      if (pendingUnits.length > 0) {
+        const cur = splitParty(normalized.recipient);
+        const seen = new Set(cur.map((s) => s.toLowerCase()));
+        for (const t of pendingUnits) {
+          if (!seen.has(t.toLowerCase())) {
+            cur.push(t);
+            seen.add(t.toLowerCase());
+          }
+        }
+        normalized = { ...normalized, recipient: joinParty(cur) };
+      }
+    }
     // Chuẩn hoá phòng ban chia sẻ (luôn multi).
     if (pendingDepts.length > 0) {
       normalized = { ...normalized, department: mergeDepts(normalized.department) };
@@ -505,17 +521,12 @@ export default function CorrespondenceForm({
           </Field>
           <Field label={partyLabel}>
             {direction === "INTERNAL" ? (
-              <Select
+              <DepartmentMultiInput
+                ref={recipientRef}
                 value={v.recipient}
-                onChange={(e) => set("recipient", e.target.value)}
-              >
-                <option value="">— Chọn đơn vị nhận —</option>
-                {internalRecipientOptions.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </Select>
+                onChange={(val) => set("recipient", val)}
+                placeholder="Chọn hoặc nhập từng đơn vị rồi Enter"
+              />
             ) : allowMultiple ? (
               <>
                 <div className="rounded-md border border-gray-300 px-2 py-1.5 focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500">

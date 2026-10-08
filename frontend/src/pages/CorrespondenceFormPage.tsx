@@ -36,7 +36,7 @@ function toPayload(v: CorrFormValue, direction: Direction) {
     document_number: v.document_number.trim(),
     title: v.title.trim() || undefined,
     recipient:
-      direction === 'OUTGOING' ? multiParty(v.recipient) : singleParty(v.recipient),
+      direction === 'INCOMING' ? singleParty(v.recipient) : multiParty(v.recipient),
     sender:
       direction === 'INCOMING' ? singleParty(v.sender) : multiParty(v.sender),
     quantity: num(v.quantity),
