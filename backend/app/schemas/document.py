@@ -27,6 +27,7 @@ class DocumentOut(BaseModel):
     file_extension: str | None = None
     file_size: int | None = None
     storage_type: str
+    origin: str = "LIBRARY"
     category_id: str | None = None
     category: CategoryOut | None = None
     uploaded_by: str | None = None

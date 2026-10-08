@@ -134,6 +134,8 @@ export default function Documents() {
       page,
     ],
     queryFn: () =>
+      // Thu vien noi bo: chi hien file upload truc tiep (origin=LIBRARY),
+      // an file dinh kem cong van (origin=CORRESPONDENCE).
       listDocuments({
         q: searchQuery || undefined,
         file_extension: fileExt || undefined,
@@ -142,6 +144,7 @@ export default function Documents() {
         tag_id: tagId || undefined,
         sync_status: syncStatus || undefined,
         scope: scope !== "all" ? scope : undefined,
+        origin: "LIBRARY",
         sort_by: sortCfg.sort_by,
         sort_order: sortCfg.sort_order,
         page,

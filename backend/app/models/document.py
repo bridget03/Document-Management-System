@@ -21,6 +21,9 @@ class Document(Base):
 
     storage_type = Column(String(50), nullable=False, default="LOCAL")
     local_file_path = Column(Text, nullable=True)
+    # Nguon upload: LIBRARY (thu vien noi bo) | CORRESPONDENCE (file dinh kem
+    # cong van - an khoi danh sach Tai lieu nhung van dung chung kho vat ly).
+    origin = Column(String(20), nullable=False, default="LIBRARY")
 
     google_drive_file_id = Column(String(255), unique=True, nullable=True, index=True)
     google_drive_url = Column(Text, nullable=True)

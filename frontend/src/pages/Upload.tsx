@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { uploadDocument } from "../services/documentApi";
 import api from "../services/api";
@@ -7,8 +7,12 @@ import { UploadCloud, FileUp } from "lucide-react";
 import { Card } from "../components/ui/Skeleton";
 import Button from "../components/ui/Button";
 import { TextInput, TextArea, Select, Field } from "../components/ui/Input";
+import DepartmentMultiInput, {
+  type DepartmentMultiInputRef,
+} from "../components/ui/DepartmentMultiInput";
 import { useToast } from "../components/ui/Toast";
 import { VISIBILITY_OPTIONS } from "../types/correspondence";
+import { joinDeptList, splitDeptList } from "../types/correspondence";
 
 export default function Upload() {
   const [file, setFile] = useState<File | null>(null);
@@ -21,6 +25,7 @@ export default function Upload() {
   const [department, setDepartment] = useState("");
   const [progress, setProgress] = useState(0);
   const [uploading, setUploading] = useState(false);
+  const deptRef = useRef<DepartmentMultiInputRef>(null);
   const nav = useNavigate();
   const { toast } = useToast();
   const { data: cats } = useQuery({
@@ -34,6 +39,21 @@ export default function Upload() {
       toast("error", "Choose a file first.");
       return;
     }
+    // Gộp tag phòng ban đang gõ dở (nếu quên Enter).
+    const pending = splitDeptList(deptRef.current?.pending() || "");
+    const deptList = splitDeptList(department);
+    const seen = new Set(deptList.map((s) => s.toLowerCase()));
+    for (const t of pending) {
+      if (!seen.has(t.toLowerCase())) {
+        deptList.push(t);
+        seen.add(t.toLowerCase());
+      }
+    }
+    const deptValue = joinDeptList(deptList);
+    if (visibility === "DEPARTMENT" && !deptValue) {
+      toast("error", "Chia sẻ theo phòng ban thì phải chọn phòng ban.");
+      return;
+    }
     const form = new FormData();
     form.append("file", file);
     if (name) form.append("name", name);
@@ -41,7 +61,7 @@ export default function Upload() {
     if (categoryId) form.append("category_id", categoryId);
     if (tags) form.append("tags", tags);
     form.append("visibility", visibility);
-    if (department.trim()) form.append("department", department.trim());
+    if (deptValue) form.append("department", deptValue);
     try {
       setUploading(true);
       const doc = await uploadDocument(form, setProgress);
@@ -162,11 +182,11 @@ export default function Upload() {
               </Select>
             </Field>
             {visibility === "DEPARTMENT" && (
-              <Field label="Phòng ban">
-                <TextInput
-                  placeholder="Kế toán"
+              <Field label="Phòng ban *">
+                <DepartmentMultiInput
+                  ref={deptRef}
                   value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
+                  onChange={setDepartment}
                 />
               </Field>
             )}

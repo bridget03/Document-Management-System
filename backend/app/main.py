@@ -91,7 +91,7 @@ def seed():
     try:
         if not db.query(User).filter(User.email == "admin@example.com").first():
             db.add(User(name="Admin", email="admin@example.com", password_hash=hash_password("admin123"), role="ADMIN"))
-        for name in ["Hợp đồng", "Báo cáo", "Kỹ thuật", "Tài chính", "Nhân sự", "Quy trình", "Khác"]:
+        for name in ["Nội quy", "Hướng dẫn", "Quy định", "Hợp đồng", "Báo cáo", "Kỹ thuật", "Tài chính", "Nhân sự", "Quy trình", "Khác"]:
             if not db.query(Category).filter(Category.name == name).first():
                 db.add(Category(name=name))
         for code, name in [

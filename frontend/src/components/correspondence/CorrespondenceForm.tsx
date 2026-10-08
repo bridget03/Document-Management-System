@@ -320,6 +320,8 @@ export default function CorrespondenceForm({
       for (const f of Array.from(files)) {
         const form = new FormData();
         form.append("file", f);
+        // Danh dau file dinh kem cong van de an khoi danh sach Tai lieu.
+        form.append("origin", "CORRESPONDENCE");
         const doc = await uploadDocument(form);
         setV((p) => ({
           ...p,

@@ -54,6 +54,7 @@ def list_documents(
     uploaded_by: str | None = None,
     source: str | None = None,
     sync_status: str | None = None,
+    origin: str | None = None,
     created_from: datetime | None = None,
     created_to: datetime | None = None,
     updated_from: datetime | None = None,
@@ -78,6 +79,7 @@ def list_documents(
     query = apply_filters(
         query, q, category_id, tag_id, file_extension, mime_type, uploaded_by,
         source, sync_status, created_from, created_to, updated_from, updated_to,
+        origin=origin,
     )
     total = query.count()
     items = query.order_by(col).offset((page - 1) * page_size).limit(page_size).all()
@@ -106,6 +108,7 @@ async def upload_document(
     tags: str | None = Form(None),
     visibility: str | None = Form(None),
     department: str | None = Form(None),
+    origin: str | None = Form(None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -124,6 +127,11 @@ async def upload_document(
             raise HTTPException(status_code=400, detail="Chia sẻ theo phòng ban thì phải chọn phòng ban.")
     rel = storage().save(data, ext)
     tag_names = [t.strip() for t in (tags or "").split(",") if t.strip()]
+    # File dinh kem cong van gui kem origin=CORRESPONDENCE de an khoi
+    # danh sach Tai lieu (kho vat ly van dung chung).
+    org = (origin or "LIBRARY").upper()
+    if org not in ("LIBRARY", "CORRESPONDENCE"):
+        raise HTTPException(status_code=400, detail="origin không hợp lệ.")
     doc = Document(
         name=sanitize_filename(name or file.filename or "unnamed"),
         original_name=sanitize_filename(file.filename or "unnamed"),
@@ -133,6 +141,7 @@ async def upload_document(
         file_size=len(data),
         storage_type="LOCAL",
         local_file_path=rel,
+        origin=org,
         category_id=category_id or None,
         uploaded_by=user.id,
         visibility=vis,

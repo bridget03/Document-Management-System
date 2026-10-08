@@ -20,6 +20,7 @@ def apply_filters(
     created_to=None,
     updated_from=None,
     updated_to=None,
+    origin: str | None = None,
 ) -> Query:
     if q:
         q = normalize_text(q) or q
@@ -50,6 +51,8 @@ def apply_filters(
         query = query.filter(Document.source == source)
     if sync_status:
         query = query.filter(Document.sync_status == sync_status)
+    if origin:
+        query = query.filter(Document.origin == origin.upper())
     if created_from:
         query = query.filter(Document.created_at >= created_from)
     if created_to:

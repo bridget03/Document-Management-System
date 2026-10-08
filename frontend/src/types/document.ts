@@ -4,7 +4,7 @@ export interface Document {
   mime_type?: string; file_extension?: string; file_size?: number;
   storage_type: string; category_id?: string | null; category?: { id: string; name: string } | null;
   uploaded_by?: string;
-  source: string; sync_status: string;
+  source: string; sync_status: string; origin?: string;
   visibility?: string | null; department?: string | null;
   google_drive_file_id?: string; google_drive_url?: string;
   created_at: string; updated_at: string; tags: Tag[];
