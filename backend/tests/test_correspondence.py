@@ -410,3 +410,28 @@ def test_expiring_soon_boundaries():
     # sắp xếp tăng dần days_left
     days = [e["days_left"] for e in stats["expiring_soon"]]
     assert days == sorted(days)
+
+
+def test_internal_department_scope_filters_by_recipient():
+    """Cong van noi bo: scope=department ("Phong toi") loc theo dia chi nhan
+    (Bo phan/nguoi nhan), khong phai phong duoc chia se."""
+    c = get_client()
+    ha, hs = login(c), login(c, "staff@test.com", "staff123")
+    db = SessionLocal()
+    staff = db.query(User).filter(User.email == "staff@test.com").first()
+    staff.department = "Phòng Kế toán"
+    db.commit()
+    db.close()
+    t = make_type(c, ha, code="NBDEP", name="Noi bo")
+    for num, recv in (("NB/1", "Phòng Kế toán"), ("NB/2", "Phòng Nhân sự"),
+                      ("NB/3", "Phòng Kế toán; Phòng Nhân sự")):
+        r = c.post("/api/correspondence/internal", headers=ha, json={
+            "document_number": num, "recipient": recv,
+            "document_type_id": t["id"], "issuing_department": "Cty X"})
+        assert r.status_code == 200, r.text
+    got = c.get("/api/correspondence/internal", headers=hs,
+                params={"scope": "department"}).json()
+    assert sorted(d["document_number"] for d in got["items"]) == ["NB/1", "NB/3"], got
+    # scope=all van thay ca 3
+    got = c.get("/api/correspondence/internal", headers=hs).json()
+    assert got["total"] == 3

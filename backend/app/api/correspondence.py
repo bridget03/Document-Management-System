@@ -119,7 +119,12 @@ def _list(direction: str, db: Session, user: User, q=None, type_id=None, signer=
     if scope == "mine":
         query = query.filter(CorrespondenceDocument.created_by == user.id)
     elif scope == "department" and getattr(user, "department", None):
-        query = query.filter(dept_match_filter(CorrespondenceDocument.department, user.department))
+        if direction == "INTERNAL":
+            # "Phong toi" cua cong van noi bo: loc theo dia chi nhan
+            # (Bo phan/nguoi nhan), khong phai phong duoc chia se.
+            query = query.filter(dept_match_filter(CorrespondenceDocument.recipient, user.department))
+        else:
+            query = query.filter(dept_match_filter(CorrespondenceDocument.department, user.department))
     if folder_id:
         folder = db.query(CorrespondenceFolder).filter(
             CorrespondenceFolder.id == folder_id,

@@ -176,12 +176,6 @@ export default function CorrespondenceDetail({
         </div>
       </div>
 
-      {data.attachments.length > 0 && (
-        <Card className="p-4 mb-4">
-          <DocumentViewer doc={data.attachments[0].document as any} />
-        </Card>
-      )}
-
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
         <Card className="p-5 xl:col-span-2">
           <h2 className="text-sm font-semibold text-gray-900">
@@ -373,6 +367,11 @@ export default function CorrespondenceDetail({
           </Card>
         </div>
       </div>
+      {data.attachments.length > 0 && (
+        <Card className="p-4 mb-4">
+          <DocumentViewer doc={data.attachments[0].document as any} />
+        </Card>
+      )}
 
       <Modal
         open={del}
