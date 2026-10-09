@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   useQuery,
   useMutation,
@@ -20,6 +20,8 @@ import {
   corrDelete,
   listDocTypes,
 } from "../services/correspondenceApi";
+import { listTopics } from "../services/topicApi";
+import type { Topic } from "../types/topic";
 import { Card, TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import Button from "../components/ui/Button";
@@ -64,6 +66,7 @@ export default function CorrespondenceList({
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeId, setTypeId] = useState("");
+  const [topicFilter, setTopicFilter] = useState("");
   const [importantOnly, setImportantOnly] = useState(false);
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -72,6 +75,7 @@ export default function CorrespondenceList({
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [del, setDel] = useState<CorrDoc | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const nav = useNavigate();
   const qc = useQueryClient();
   const { toast } = useToast();
   // Member read-only: chỉ admin (phòng tổ chức) được tạo/import công văn.
@@ -89,9 +93,15 @@ export default function CorrespondenceList({
     queryKey: ["corr-types"],
     queryFn: () => listDocTypes(),
   });
+  const { data: topicOptions } = useQuery<Topic[]>({
+    queryKey: ["topics-active"],
+    queryFn: () => listTopics(true),
+    enabled: direction === "INTERNAL",
+  });
 
   const filterCount = [
     typeId,
+    topicFilter,
     scope !== "all" ? scope : "",
     importantOnly ? "important" : "",
   ].filter(Boolean).length;
@@ -101,6 +111,7 @@ export default function CorrespondenceList({
       direction,
       searchQuery,
       typeId,
+      topicFilter,
       scope,
       sortBy,
       sortOrder,
@@ -111,6 +122,7 @@ export default function CorrespondenceList({
       corrList(apiDir, {
         q: searchQuery || undefined,
         type_id: typeId || undefined,
+        topic: topicFilter || undefined,
         scope: scope !== "all" ? scope : undefined,
         is_important: importantOnly ? true : undefined,
         sort_by: sortBy,
@@ -134,6 +146,7 @@ export default function CorrespondenceList({
   const clearAll = () => {
     setSearchInput("");
     setTypeId("");
+    setTopicFilter("");
     setImportantOnly(false);
     setScope("all");
     setPage(1);
@@ -237,6 +250,23 @@ export default function CorrespondenceList({
                 ),
               )}
             </Select>
+            {direction === "INTERNAL" && (
+              <Select
+                value={topicFilter}
+                onChange={(e) => {
+                  setTopicFilter(e.target.value);
+                  setPage(1);
+                }}
+                aria-label="Lọc vấn đề công văn"
+              >
+                <option value="">Tất cả vấn đề</option>
+                {(topicOptions || []).map((t) => (
+                  <option key={t.id} value={t.name}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
         )}
         <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-medium text-red-700">
@@ -302,6 +332,7 @@ export default function CorrespondenceList({
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
+              onDuplicate={(d) => nav(`${base}/new`, { state: { cloneFrom: d } })}
             />
           ) : direction === "OUTGOING" ? (
             <OutgoingTable
@@ -311,6 +342,7 @@ export default function CorrespondenceList({
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
+              onDuplicate={(d) => nav(`${base}/new`, { state: { cloneFrom: d } })}
             />
           ) : (
             <InternalTable
@@ -320,6 +352,7 @@ export default function CorrespondenceList({
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSort={handleSort}
+              onDuplicate={(d) => nav(`${base}/new`, { state: { cloneFrom: d } })}
             />
           )}
           <div className="flex items-center justify-between border-t border-gray-200 px-4 py-2.5 text-sm">

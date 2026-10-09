@@ -17,6 +17,7 @@ import {
   Users,
   ScrollText,
   Landmark,
+  ListChecks,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/authStore";
 import { IconButton } from "../ui/Button";
@@ -81,6 +82,11 @@ const groups: {
         to: "/receiving-units",
         label: "Đơn vị tiếp nhận",
         icon: <Landmark size={17} />,
+      },
+      {
+        to: "/topics",
+        label: "Vấn đề công văn",
+        icon: <ListChecks size={17} />,
       },
     ],
   },

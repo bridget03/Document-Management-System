@@ -15,6 +15,8 @@ import { listDepartments } from "../../services/departmentApi";
 import type { Department } from "../../types/department";
 import { listReceivingUnits } from "../../services/receivingUnitApi";
 import type { ReceivingUnit } from "../../types/receivingUnit";
+import { listTopics } from "../../services/topicApi";
+import type { Topic } from "../../types/topic";
 import {
   LEVEL_OPTIONS,
   SECURITY_OPTIONS,
@@ -172,6 +174,11 @@ export default function CorrespondenceForm({
     queryFn: () => listReceivingUnits(true),
     enabled: direction === "INCOMING",
   });
+  const { data: topics } = useQuery<Topic[]>({
+    queryKey: ["topics-active"],
+    queryFn: () => listTopics(true),
+    enabled: direction === "INTERNAL",
+  });
 
   useEffect(() => {
     setV(initial ? toValue(initial) : empty);
@@ -288,6 +295,14 @@ export default function CorrespondenceForm({
     v.signer && !unitNames.includes(v.signer)
       ? [...unitNames, v.signer]
       : unitNames;
+
+  // Dropdown "Vấn đề" (văn bản nội bộ), giữ giá trị cũ nếu không còn
+  // trong danh mục để không mất dữ liệu khi sửa.
+  const topicNames = (topics || []).map((t) => t.name);
+  const topicOptions =
+    v.topic && !topicNames.includes(v.topic)
+      ? [...topicNames, v.topic]
+      : topicNames;
 
   // Dropdown "Bộ phận phát hành" (văn bản nội bộ): chọn tên công ty,
   // giữ giá trị cũ nếu không còn trong danh sách.
@@ -528,11 +543,17 @@ export default function CorrespondenceForm({
           </Field>
           {direction === "INTERNAL" && (
             <Field label="Vấn đề">
-              <TextInput
+              <Select
                 value={v.topic}
                 onChange={(e) => set("topic", e.target.value)}
-                placeholder="VD: Lương, Nhân sự, Vi phạm, Môi trường..."
-              />
+              >
+                <option value="">— Chọn vấn đề —</option>
+                {topicOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
             </Field>
           )}
           <Field label={partyLabel}>

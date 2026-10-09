@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
 import { corrCreate, corrGet, corrUpdate } from '../services/correspondenceApi';
@@ -69,6 +69,14 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
   const nav = useNavigate();
   const qc = useQueryClient();
   const [serverError, setServerError] = useState('');
+  // Nhan ban: mo form tao moi dien san tu van ban goc (truyen qua location.state).
+  const location = useLocation();
+  const cloneFrom = (!isEdit
+    ? (location.state as { cloneFrom?: CorrDoc } | null)?.cloneFrom
+    : undefined) ?? null;
+  const cloneInitial: CorrDoc | null = cloneFrom
+    ? { ...cloneFrom, document_number: '', processing_status: 'DRAFT' }
+    : null;
 
   const { data, isLoading } = useQuery<CorrDoc>({
     queryKey: ['corr-doc', id],
@@ -108,6 +116,11 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
       </Link>
       <div>
         <h1 className="text-xl font-bold text-gray-900">{isEdit ? 'Chỉnh sửa văn bản' : title}</h1>
+        {!isEdit && cloneInitial && (
+          <p className="mt-1 text-sm text-gray-500">
+            Đang nhân bản từ văn bản “{cloneFrom?.document_number}” — nhập số văn bản mới rồi sửa các thông tin thay đổi.
+          </p>
+        )}
       </div>
       {isEdit && isLoading ? (
         <Card className="space-y-3 p-5">
@@ -116,7 +129,7 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
       ) : direction === 'INCOMING' ? (
         <IncomingForm
           key={formKey}
-          initial={isEdit ? data || null : null}
+          initial={isEdit ? data || null : cloneInitial}
           pending={save.isPending}
           serverError={serverError}
           createMode={!isEdit}
@@ -129,7 +142,7 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
       ) : direction === 'OUTGOING' ? (
         <OutgoingForm
           key={formKey}
-          initial={isEdit ? data || null : null}
+          initial={isEdit ? data || null : cloneInitial}
           pending={save.isPending}
           serverError={serverError}
           createMode={!isEdit}
@@ -143,7 +156,7 @@ export default function CorrespondenceFormPage({ direction, title, base }: Props
         <CorrespondenceForm
           key={formKey}
           direction={direction}
-          initial={isEdit ? data || null : null}
+          initial={isEdit ? data || null : cloneInitial}
           pending={save.isPending}
           serverError={serverError}
           createMode={!isEdit}

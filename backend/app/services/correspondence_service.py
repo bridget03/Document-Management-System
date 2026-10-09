@@ -246,7 +246,7 @@ def replace_links(db: Session, doc: CorrespondenceDocument, links: list) -> None
 def apply_corr_filters(query, direction: str, q=None, type_id=None, signer=None,
                        department=None, security=None, urgency=None, status=None,
                        date_from=None, date_to=None, document_type_joined=False,
-                       is_important=None):
+                       is_important=None, topic=None):
     from app.models.correspondence import CorrespondenceDocument as CD
 
     query = query.filter(CD.direction == direction)
@@ -284,6 +284,8 @@ def apply_corr_filters(query, direction: str, q=None, type_id=None, signer=None,
         query = query.filter(CD.is_important.is_(True))
     elif is_important is False:
         query = query.filter(CD.is_important.is_(False))
+    if topic:
+        query = query.filter(CD.topic == topic)
     return query.distinct()
 
 

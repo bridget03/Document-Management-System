@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   keepPreviousData,
   useMutation,
@@ -26,6 +26,8 @@ import {
   corrTreeStats,
   listDocTypes,
 } from "../services/correspondenceApi";
+import { listTopics } from "../services/topicApi";
+import type { Topic } from "../types/topic";
 import { TableSkeleton } from "../components/ui/Skeleton";
 import EmptyState from "../components/ui/EmptyState";
 import Button, { IconButton, LinkButton } from "../components/ui/Button";
@@ -98,6 +100,7 @@ export default function CorrespondenceExplorer({
   fixedDirection?: Direction | null;
 }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const nav = useNavigate();
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -133,6 +136,7 @@ export default function CorrespondenceExplorer({
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeId, setTypeId] = useState("");
+  const [topicFilter, setTopicFilter] = useState("");
   const [importantOnly, setImportantOnly] = useState(false);
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -269,6 +273,11 @@ export default function CorrespondenceExplorer({
     queryKey: ["corr-types"],
     queryFn: () => listDocTypes(),
   });
+  const { data: topicOptions } = useQuery<Topic[]>({
+    queryKey: ["topics-active"],
+    queryFn: () => listTopics(true),
+    enabled: direction === "INTERNAL",
+  });
 
   // ---- Doc list theo node thời gian ----
   // Chưa chọn cây: hiện văn bản mới thêm gần đây (sắp theo ngày tạo).
@@ -292,6 +301,7 @@ export default function CorrespondenceExplorer({
   };
   const filterCount = [
     typeId,
+    topicFilter,
     effScope !== "all" ? effScope : "",
     importantOnly ? "important" : "",
     dateRange.from || dateRange.to ? "date" : "",
@@ -304,6 +314,7 @@ export default function CorrespondenceExplorer({
       hasSelection ? selection.month : null,
       searchQuery,
       typeId,
+      topicFilter,
       effScope,
       hasSelection ? sortBy : "recent",
       hasSelection ? sortOrder : "desc",
@@ -316,6 +327,7 @@ export default function CorrespondenceExplorer({
       corrList(apiDir!, {
         q: searchQuery || undefined,
         type_id: typeId || undefined,
+        topic: topicFilter || undefined,
         scope: effScope !== "all" ? effScope : undefined,
         is_important: importantOnly ? true : undefined,
         date_from: effDateFrom,
@@ -342,6 +354,7 @@ export default function CorrespondenceExplorer({
   const clearAll = () => {
     setSearchInput("");
     setTypeId("");
+    setTopicFilter("");
     setImportantOnly(false);
     setScope("all");
     setDatePreset("all");
@@ -583,23 +596,40 @@ export default function CorrespondenceExplorer({
                         <option value="department">Phòng tôi</option>
                       </Select>
                     )}
-                    <Select
-                      value={typeId}
-                      onChange={(e) => {
-                        setTypeId(e.target.value);
-                        setPage(1);
-                      }}
-                      aria-label="Lọc loại văn bản"
-                    >
-                      <option value="">Tất cả loại</option>
-                      {(types || []).map(
-                        (t: { id: string; code: string; name: string }) => (
-                          <option key={t.id} value={t.id}>
-                            {t.code} · {t.name}
-                          </option>
-                        ),
-                      )}
+                      <Select
+                        value={typeId}
+                        onChange={(e) => {
+                          setTypeId(e.target.value);
+                          setPage(1);
+                        }}
+                        aria-label="Lọc loại văn bản"
+                      >
+                        <option value="">Tất cả loại</option>
+                        {(types || []).map(
+                          (t: { id: string; code: string; name: string }) => (
+                            <option key={t.id} value={t.id}>
+                              {t.code} · {t.name}
+                            </option>
+                          ),
+                        )}
                       </Select>
+                      {direction === "INTERNAL" && (
+                        <Select
+                          value={topicFilter}
+                          onChange={(e) => {
+                            setTopicFilter(e.target.value);
+                            setPage(1);
+                          }}
+                          aria-label="Lọc vấn đề công văn"
+                        >
+                          <option value="">Tất cả vấn đề</option>
+                          {(topicOptions || []).map((t) => (
+                            <option key={t.id} value={t.name}>
+                              {t.name}
+                            </option>
+                          ))}
+                        </Select>
+                      )}
                     </div>
                 </>
                 {showFilters && (
@@ -696,6 +726,7 @@ export default function CorrespondenceExplorer({
                         sortBy={sortBy}
                         sortOrder={sortOrder}
                         onSort={handleSort}
+                     onDuplicate={(d) => nav(`${base}/new`, { state: { cloneFrom: d } })}
                       />
                     ) : direction === "OUTGOING" ? (
                       <OutgoingTable
@@ -705,6 +736,7 @@ export default function CorrespondenceExplorer({
                         sortBy={sortBy}
                         sortOrder={sortOrder}
                         onSort={handleSort}
+                     onDuplicate={(d) => nav(`${base}/new`, { state: { cloneFrom: d } })}
                       />
                     ) : (
                       <InternalTable
@@ -714,6 +746,7 @@ export default function CorrespondenceExplorer({
                         sortBy={sortBy}
                         sortOrder={sortOrder}
                         onSort={handleSort}
+                     onDuplicate={(d) => nav(`${base}/new`, { state: { cloneFrom: d } })}
                       />
                     )}
                     <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-4 py-2 text-sm">

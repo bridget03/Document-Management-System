@@ -12,6 +12,8 @@ import { listDepartments } from "../../services/departmentApi";
 import type { Department } from "../../types/department";
 import { listReceivingUnits } from "../../services/receivingUnitApi";
 import type { ReceivingUnit } from "../../types/receivingUnit";
+import { listTopics } from "../../services/topicApi";
+import type { Topic } from "../../types/topic";
 import {
   TEMPLATE_HEADERS,
   TEMPLATE_REQUIRED,
@@ -41,15 +43,15 @@ const MAX_ROWS = 500;
 
 function downloadTemplate(
   direction: Direction,
-  lists: { deptNames: string[]; unitNames: string[]; typeCodes: string[] },
+  lists: { deptNames: string[]; unitNames: string[]; typeCodes: string[]; topicNames: string[] },
 ) {
-  const { deptNames, unitNames, typeCodes } = lists;
+  const { deptNames, unitNames, typeCodes, topicNames } = lists;
   const cfg = DIRECTION_CONFIG[direction];
   const headers = TEMPLATE_HEADERS[direction];
   const sample: Record<string, unknown> = {
     "Số văn bản": "CV001/2026/VICENZA",
     "Tiêu đề công văn": "V/v nghỉ lễ Quốc khánh",
-    "Vấn đề": direction === "INTERNAL" ? "Nhân sự" : undefined,
+    "Vấn đề": direction === "INTERNAL" ? (topicNames[0] ?? "Nhân sự") : undefined,
     "Đơn vị phát hành":
       direction === "INCOMING"
         ? cfg.sampleParty
@@ -131,6 +133,7 @@ function downloadTemplate(
     dropdown("Mức độ bảo mật", ["Thấp", "Cao"], 5);
   }
   if (direction === "INTERNAL") {
+    dropdown("Vấn đề", topicNames, 6);
     dropdown("Bộ phận/người nhận", deptNames, 1);
     dropdown("Đơn vị phát hành", [...ISSUING_DEPARTMENT_OPTIONS], 3);
     dropdown("Loại văn bản", typeCodes, 4);
@@ -181,6 +184,11 @@ export default function ExcelImportModal({
   const { data: receivingUnits, refetch: refetchUnits } = useQuery<ReceivingUnit[]>({
     queryKey: ["receiving-units-active"],
     queryFn: () => listReceivingUnits(true),
+    enabled: open,
+  });
+  const { data: topicsData, refetch: refetchTopics } = useQuery<Topic[]>({
+    queryKey: ["topics-active"],
+    queryFn: () => listTopics(true),
     enabled: open,
   });
 
@@ -355,12 +363,13 @@ export default function ExcelImportModal({
             onClick={() => {
               // Lấy danh mục mới nhất từ server ngay lúc bấm tải,
               // đề phòng danh sách cache từ lúc mở modal đã cũ.
-              Promise.all([refetchDepts(), refetchUnits(), refetchTypes()])
-                .then(([d, u, t]) =>
+              Promise.all([refetchDepts(), refetchUnits(), refetchTypes(), refetchTopics()])
+                .then(([d, u, t, tp]) =>
                   downloadTemplate(direction, {
                     deptNames: (d.data || []).map((x) => x.name),
                     unitNames: (u.data || []).map((x) => x.name),
                     typeCodes: (t.data || []).map((x) => x.code),
+                    topicNames: (tp.data || []).map((x) => x.name),
                   }),
                 )
                 .catch(() =>

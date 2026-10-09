@@ -16,6 +16,7 @@ from app.api.audit import router as audit_router
 from app.api.auth import router as auth_router
 from app.api.departments import router as departments_router
 from app.api.receiving_units import router as receiving_units_router
+from app.api.topics import router as topics_router
 from app.api.documents import router as docs_router
 from app.api.categories import router as cats_router
 from app.api.tags import router as tags_router
@@ -62,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api")
     app.include_router(departments_router, prefix="/api")
     app.include_router(receiving_units_router, prefix="/api")
+    app.include_router(topics_router, prefix="/api")
     app.include_router(audit_router, prefix="/api")
     app.include_router(docs_router, prefix="/api")
     app.include_router(cats_router, prefix="/api")
@@ -86,6 +88,7 @@ def seed():
     from app.models.correspondence import DocumentType
     from app.models.department import Department
     from app.models.receiving_unit import DEFAULT_RECEIVING_UNITS, ReceivingUnit
+    from app.models.topic import DEFAULT_TOPICS, Topic
 
     db = SessionLocal()
     try:
@@ -110,6 +113,9 @@ def seed():
         for name in DEFAULT_RECEIVING_UNITS:
             if not db.query(ReceivingUnit).filter(ReceivingUnit.name == name).first():
                 db.add(ReceivingUnit(name=name, status="ACTIVE"))
+        for name in DEFAULT_TOPICS:
+            if not db.query(Topic).filter(Topic.name == name).first():
+                db.add(Topic(name=name, status="ACTIVE"))
         db.commit()
     finally:
         db.close()

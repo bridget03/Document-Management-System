@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowDown, ArrowUp, ArrowUpDown, Eye, Pencil, Trash2, MoreHorizontal, Star } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Eye, Pencil, Trash2, MoreHorizontal, Star, Copy } from "lucide-react";
 import Badge from "../ui/Badge";
 import ActionMenu from "../ui/ActionMenu";
 import { IconButton, MenuItem } from "../ui/Button";
@@ -17,6 +17,7 @@ interface Props {
   items: CorrDoc[];
   base: string;
   onDelete: (doc: CorrDoc) => void;
+  onDuplicate: (doc: CorrDoc) => void;
   sortBy: CorrSortKey;
   sortOrder: SortOrder;
   onSort: (key: CorrSortKey) => void;
@@ -45,6 +46,7 @@ export default function InternalTable({
   sortBy,
   sortOrder,
   onSort,
+  onDuplicate,
 }: Props) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
@@ -52,6 +54,8 @@ export default function InternalTable({
   // Member read-only: chỉ admin hoặc chủ sở hữu (văn bản cũ) được sửa/xóa.
   const canWriteDoc = (d: CorrDoc) =>
     me?.role === "ADMIN" || (d.created_by != null && d.created_by === me?.id);
+  // Nhan ban tao ban ghi MOI -> chi admin (quyen tao cong van).
+  const canDuplicate = me?.role === "ADMIN";
   const closeMenu = useCallback(() => {
     setOpenId(null);
     setAnchor(null);
@@ -197,6 +201,17 @@ export default function InternalTable({
           >
             <Eye size={14} /> Chi tiết
           </Link>
+          {canDuplicate && (
+            <MenuItem
+              onClick={() => {
+                const doc = openDoc;
+                closeMenu();
+                onDuplicate(doc);
+              }}
+            >
+              <Copy size={14} /> Nhân bản
+            </MenuItem>
+          )}
           {canWriteDoc(openDoc) && (
             <Link
               to={`${base}/${openDoc.id}/edit`}
