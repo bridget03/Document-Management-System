@@ -36,6 +36,8 @@ DIRECTIONS = ("INCOMING", "OUTGOING", "INTERNAL")
 # prevents an arbitrary query parameter from becoming a SQL column reference.
 SORTS = {
     "document_number": CorrespondenceDocument.document_number,
+    "title": CorrespondenceDocument.title,
+    "topic": CorrespondenceDocument.topic,
     "document_type": DocumentType.name,
     "party": None,  # Sender for incoming documents, recipient otherwise.
     "signer": CorrespondenceDocument.signer,
@@ -394,7 +396,7 @@ def _update(direction: str, corr_id: str, payload: CorrUpdate, db: Session, user
         for k, v in data.items():
             if k in ("attachment_ids", "links"):
                 continue
-            if k in ("title", "recipient", "sender", "signer", "issuing_department", "issuing_office", "notes") and isinstance(v, str):
+            if k in ("title", "topic", "recipient", "sender", "signer", "issuing_department", "issuing_office", "notes") and isinstance(v, str):
                 from app.database.database import normalize_text
                 v = normalize_text(v.strip()) or None
             if k == "visibility" and isinstance(v, str):

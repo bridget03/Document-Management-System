@@ -32,6 +32,7 @@ import {
 export interface CorrFormValue {
   document_number: string;
   title: string;
+  topic: string;
   recipient: string;
   sender: string;
   quantity: string;
@@ -70,6 +71,7 @@ interface Props {
 const empty: CorrFormValue = {
   document_number: "",
   title: "",
+  topic: "",
   recipient: "",
   sender: "",
   quantity: "",
@@ -109,6 +111,7 @@ function toValue(d: CorrDoc): CorrFormValue {
   return {
     document_number: d.document_number,
     title: d.title || "",
+    topic: d.topic || "",
     recipient: d.recipient || "",
     sender: d.sender || "",
     quantity:
@@ -448,8 +451,12 @@ export default function CorrespondenceForm({
       );
     if (direction === "INCOMING" && !normalized.sender.trim())
       errs.push("Đơn vị phát hành không được để trống.");
-    if (isIncoming && !normalized.signer.trim())
-      errs.push("Vui lòng nhập đơn vị tiếp nhận.");
+    if (!normalized.signer.trim())
+      errs.push(
+        isIncoming
+          ? "Vui lòng nhập đơn vị tiếp nhận."
+          : "Vui lòng chọn/nhập người ký.",
+      );
     if (!normalized.document_type_id) errs.push("Vui lòng chọn loại văn bản.");
     if (!isIncoming && !normalized.issuing_department.trim())
       errs.push(
@@ -519,6 +526,15 @@ export default function CorrespondenceForm({
               placeholder="VD: V/v nghỉ lễ Quốc khánh"
             />
           </Field>
+          {direction === "INTERNAL" && (
+            <Field label="Vấn đề">
+              <TextInput
+                value={v.topic}
+                onChange={(e) => set("topic", e.target.value)}
+                placeholder="VD: Lương, Nhân sự, Vi phạm, Môi trường..."
+              />
+            </Field>
+          )}
           <Field label={partyLabel}>
             {direction === "INTERNAL" ? (
               <DepartmentMultiInput
@@ -603,29 +619,27 @@ export default function CorrespondenceForm({
               />
             )}
           </Field>
-          {isIncoming && (
-            <Field label={signerLabel}>
-              {isIncoming ? (
-                <Select
-                  value={v.signer}
-                  onChange={(e) => set("signer", e.target.value)}
-                >
-                  <option value="">— Chọn đơn vị tiếp nhận —</option>
-                  {signerOptions.map((name) => (
-                    <option key={name} value={name}>
-                      {name}
-                    </option>
-                  ))}
-                </Select>
-              ) : (
-                <TextInput
-                  value={v.signer}
-                  onChange={(e) => set("signer", e.target.value)}
-                  placeholder="Nguyễn Văn A"
-                />
-              )}
-            </Field>
-          )}
+          <Field label={signerLabel}>
+            {isIncoming ? (
+              <Select
+                value={v.signer}
+                onChange={(e) => set("signer", e.target.value)}
+              >
+                <option value="">— Chọn đơn vị tiếp nhận —</option>
+                {signerOptions.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            ) : (
+              <TextInput
+                value={v.signer}
+                onChange={(e) => set("signer", e.target.value)}
+                placeholder="Nguyễn Văn A"
+              />
+            )}
+          </Field>
           <Field label="Loại văn bản *">
             <Select
               value={v.document_type_id}

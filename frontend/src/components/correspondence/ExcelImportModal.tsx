@@ -49,6 +49,7 @@ function downloadTemplate(
   const sample: Record<string, unknown> = {
     "Số văn bản": "CV001/2026/VICENZA",
     "Tiêu đề công văn": "V/v nghỉ lễ Quốc khánh",
+    "Vấn đề": direction === "INTERNAL" ? "Nhân sự" : undefined,
     "Đơn vị phát hành":
       direction === "INCOMING"
         ? cfg.sampleParty
@@ -61,7 +62,7 @@ function downloadTemplate(
         ? deptNames.slice(0, 2).join(", ")
         : undefined,
     "Đơn vị tiếp nhận": unitNames[0] ?? "Phòng Hành chính",
-    "Người ký": unitNames[0] ?? "Phòng Hành chính",
+    "Người ký": "Nguyễn Văn A",
     "Loại văn bản": typeCodes[0] ?? "CV01",
     "Mức độ bảo mật": "Thấp",
     "Ngày ký": "17/09/2026",
@@ -400,7 +401,7 @@ export default function ExcelImportModal({
                       ? "Đơn vị tiếp nhận"
                       : direction === "OUTGOING"
                         ? "Phòng ban phát hành"
-                        : "Bộ phận phát hành"}
+                        : "Người ký"}
                   </th>
                   <th className="px-3 py-2 font-medium">Trạng thái</th>
                 </tr>
@@ -426,9 +427,7 @@ export default function ExcelImportModal({
                       {String(
                         direction === "OUTGOING"
                           ? ((r.data as Record<string, unknown>).issuing_office || "—")
-                          : direction === "INTERNAL"
-                            ? ((r.data as Record<string, unknown>).issuing_department || "—")
-                            : (r.data.signer || "—"),
+                          : (r.data.signer || "—"),
                       )}
                     </td>
                     <td className="px-3 py-1.5 text-xs">

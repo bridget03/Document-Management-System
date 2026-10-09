@@ -83,6 +83,7 @@ class LinkIn(BaseModel):
 class CorrCreate(BaseModel):
     document_number: str
     title: str | None = None
+    topic: str | None = None
     recipient: str | None = None
     sender: str | None = None
     quantity: int | None = None
@@ -111,6 +112,7 @@ class CorrCreate(BaseModel):
 class CorrUpdate(BaseModel):
     document_number: str | None = None
     title: str | None = None
+    topic: str | None = None
     recipient: str | None = None
     sender: str | None = None
     quantity: int | None = None
@@ -177,6 +179,7 @@ class CorrOut(BaseModel):
     direction: str
     document_number: str
     title: str | None = None
+    topic: str | None = None
     recipient: str | None = None
     sender: str | None = None
     quantity: int | None = None

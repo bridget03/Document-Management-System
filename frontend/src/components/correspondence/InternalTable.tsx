@@ -24,10 +24,12 @@ interface Props {
 
 const COL_WIDTHS: Record<string, number> = {
   docNo: 120,
-  title: 300,
+  title: 240,
+  topic: 180,
   type: 110,
   party: 220,
-  issuer: 200,
+  issuer: 180,
+  signer: 150,
   issueDate: 120,
   signedDate: 120,
   actions: 60,
@@ -88,9 +90,11 @@ export default function InternalTable({
           <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-wide text-gray-500">
             <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "document_number" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Số văn bản", "document_number")}<ResizeHandle onResizeStart={onResizeStart("docNo")} onReset={() => resetColumn("docNo")} /></th>
             <th className="relative px-4 py-2.5 font-medium">Tiêu đề<ResizeHandle onResizeStart={onResizeStart("title")} onReset={() => resetColumn("title")} /></th>
+            <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "topic" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Vấn đề", "topic")}<ResizeHandle onResizeStart={onResizeStart("topic")} onReset={() => resetColumn("topic")} /></th>
             <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "document_type" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Loại", "document_type")}<ResizeHandle onResizeStart={onResizeStart("type")} onReset={() => resetColumn("type")} /></th>
             <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "party" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Bộ phận/người nhận", "party")}<ResizeHandle onResizeStart={onResizeStart("party")} onReset={() => resetColumn("party")} /></th>
             <th className="relative px-4 py-2.5 font-medium">Bộ phận phát hành<ResizeHandle onResizeStart={onResizeStart("issuer")} onReset={() => resetColumn("issuer")} /></th>
+            <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "signer" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Người ký", "signer")}<ResizeHandle onResizeStart={onResizeStart("signer")} onReset={() => resetColumn("signer")} /></th>
             <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "issue_date" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Ngày phát hành", "issue_date")}<ResizeHandle onResizeStart={onResizeStart("issueDate")} onReset={() => resetColumn("issueDate")} /></th>
             <th className="relative px-4 py-2.5 font-medium" aria-sort={sortBy === "signed_date" ? (sortOrder === "asc" ? "ascending" : "descending") : "none"}>{sortableHeader("Ngày ký", "signed_date")}<ResizeHandle onResizeStart={onResizeStart("signedDate")} onReset={() => resetColumn("signedDate")} /></th>
             <th className="relative px-4 py-2.5 text-right font-medium">Actions<ResizeHandle onResizeStart={onResizeStart("actions")} onReset={() => resetColumn("actions")} /></th>
@@ -121,6 +125,11 @@ export default function InternalTable({
                     {d.title || "—"}
                   </span>
                 </td>
+                <td className="px-4 py-3 text-gray-600">
+                  <span className="block truncate" title={d.topic || undefined}>
+                    {d.topic || "—"}
+                  </span>
+                </td>
                 <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                   {d.doc_type ? d.doc_type.name : "—"}
                 </td>
@@ -147,6 +156,9 @@ export default function InternalTable({
                   <span className="block truncate" title={d.issuing_department || undefined}>
                     {d.issuing_department || "—"}
                   </span>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                  {d.signer || "—"}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                   {fmtDateVN(d.issue_date)}

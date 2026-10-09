@@ -64,7 +64,6 @@ export default function CorrespondenceList({
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeId, setTypeId] = useState("");
-  const [signer, setSigner] = useState("");
   const [importantOnly, setImportantOnly] = useState(false);
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -93,7 +92,6 @@ export default function CorrespondenceList({
 
   const filterCount = [
     typeId,
-    signer,
     scope !== "all" ? scope : "",
     importantOnly ? "important" : "",
   ].filter(Boolean).length;
@@ -103,7 +101,6 @@ export default function CorrespondenceList({
       direction,
       searchQuery,
       typeId,
-      signer,
       scope,
       sortBy,
       sortOrder,
@@ -114,7 +111,6 @@ export default function CorrespondenceList({
       corrList(apiDir, {
         q: searchQuery || undefined,
         type_id: typeId || undefined,
-        signer: signer || undefined,
         scope: scope !== "all" ? scope : undefined,
         is_important: importantOnly ? true : undefined,
         sort_by: sortBy,
@@ -138,7 +134,6 @@ export default function CorrespondenceList({
   const clearAll = () => {
     setSearchInput("");
     setTypeId("");
-    setSigner("");
     setImportantOnly(false);
     setScope("all");
     setPage(1);
@@ -183,7 +178,7 @@ export default function CorrespondenceList({
             <Search size={16} className="shrink-0 text-gray-400" />
             <input
               className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-              placeholder="Tìm số văn bản, tên tiêu đề, nơi nhận/gửi..."
+              placeholder="Tìm theo số văn bản, tên tiêu đề, nơi nhận/gửi, người ký..."
               aria-label={`Tìm văn bản ${dirLabel}`}
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
@@ -242,21 +237,6 @@ export default function CorrespondenceList({
                 ),
               )}
             </Select>
-            {direction === "INCOMING" && (
-              <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2">
-                <Search size={14} className="shrink-0 text-gray-400" />
-                <input
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-                  placeholder="Đơn vị tiếp nhận..."
-                  aria-label="Lọc đơn vị tiếp nhận"
-                  value={signer}
-                  onChange={(e) => {
-                    setSigner(e.target.value);
-                    setPage(1);
-                  }}
-                />
-              </div>
-            )}
           </div>
         )}
         <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-medium text-red-700">

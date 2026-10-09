@@ -133,7 +133,6 @@ export default function CorrespondenceExplorer({
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [typeId, setTypeId] = useState("");
-  const [signer, setSigner] = useState("");
   const [importantOnly, setImportantOnly] = useState(false);
   const [scope, setScope] = useState("all");
   const [showFilters, setShowFilters] = useState(false);
@@ -293,7 +292,6 @@ export default function CorrespondenceExplorer({
   };
   const filterCount = [
     typeId,
-    signer,
     effScope !== "all" ? effScope : "",
     importantOnly ? "important" : "",
     dateRange.from || dateRange.to ? "date" : "",
@@ -306,7 +304,6 @@ export default function CorrespondenceExplorer({
       hasSelection ? selection.month : null,
       searchQuery,
       typeId,
-      signer,
       effScope,
       hasSelection ? sortBy : "recent",
       hasSelection ? sortOrder : "desc",
@@ -319,7 +316,6 @@ export default function CorrespondenceExplorer({
       corrList(apiDir!, {
         q: searchQuery || undefined,
         type_id: typeId || undefined,
-        signer: signer || undefined,
         scope: effScope !== "all" ? effScope : undefined,
         is_important: importantOnly ? true : undefined,
         date_from: effDateFrom,
@@ -346,7 +342,6 @@ export default function CorrespondenceExplorer({
   const clearAll = () => {
     setSearchInput("");
     setTypeId("");
-    setSigner("");
     setImportantOnly(false);
     setScope("all");
     setDatePreset("all");
@@ -403,7 +398,9 @@ export default function CorrespondenceExplorer({
             </Button>
           </span>
           <div className="min-w-0">
-            <h1 className="truncate text-lg font-bold text-gray-900">{title}</h1>
+            <h1 className="truncate text-lg font-bold text-gray-900">
+              {title}
+            </h1>
             <p className="truncate text-xs text-gray-500">
               {breadcrumb}
               {range ? ` · ${range.date_from} → ${range.date_to}` : ""}
@@ -539,10 +536,10 @@ export default function CorrespondenceExplorer({
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="flex min-w-[220px] flex-1 items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-2 focus-within:border-brand-600">
                     <Search size={16} className="shrink-0 text-gray-400" />
-                    <input
-                      className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-                      placeholder="Tìm số văn bản, tên tiêu đề, nơi nhận/gửi..."
-                      aria-label={`Tìm văn bản ${dirLabel}`}
+                      <input
+                        className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
+                        placeholder="Tìm theo số văn bản, tên tiêu đề, nơi nhận/gửi, người ký..."
+                        aria-label={`Tìm văn bản ${dirLabel}`}
                       value={searchInput}
                       onChange={(e) => setSearchInput(e.target.value)}
                     />
@@ -567,90 +564,63 @@ export default function CorrespondenceExplorer({
                       </Badge>
                     )}
                   </Button>
-                  {direction !== "INCOMING" && (
-                    <Select
-                      value={scope}
-                      onChange={(e) => {
-                        setScope(e.target.value);
-                        setPage(1);
-                        qc.invalidateQueries({ queryKey: ["corr-tree"] });
-                      }}
-                      className="w-auto"
-                      aria-label="Phạm vi"
-                    >
-                      <option value="all">Tất cả</option>
-                      <option value="mine">Của tôi</option>
-                      <option value="department">Phòng tôi</option>
-                    </Select>
-                  )}
-                  <IconButton
-                    label="Tải lại"
-                    onClick={() => {
-                      refetch();
-                      refetchTree();
-                    }}
-                  >
-                    <RefreshCw size={15} />
-                  </IconButton>
                 </div>
-                {showFilters && (
-                  <>
-                      <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 sm:grid-cols-2">
-                        <Select
-                          value={typeId}
-                          onChange={(e) => {
-                            setTypeId(e.target.value);
-                            setPage(1);
-                          }}
-                          aria-label="Lọc loại văn bản"
-                        >
-                          <option value="">Tất cả loại</option>
-                          {(types || []).map(
-                            (t: { id: string; code: string; name: string }) => (
-                              <option key={t.id} value={t.id}>
-                                {t.code} · {t.name}
-                              </option>
-                            ),
-                          )}
-                        </Select>
-                        {direction === "INCOMING" && (
-                          <div className="flex items-center gap-2 rounded-md border border-gray-300 px-3 py-2">
-                            <Search size={14} className="shrink-0 text-gray-400" />
-                            <input
-                              className="w-full bg-transparent text-sm outline-none placeholder:text-gray-400"
-                              placeholder={
-                                direction === "INCOMING"
-                                  ? "Đơn vị tiếp nhận..."
-                                  : "Người ký..."
-                              }
-                              aria-label="Lọc người ký"
-                              value={signer}
-                              onChange={(e) => {
-                                setSigner(e.target.value);
-                                setPage(1);
-                              }}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    <div className="border-t border-gray-100 pt-3">
-                      <p className="mb-1.5 text-xs font-medium text-gray-500">
-                        Lọc theo ngày phát hành
-                      </p>
-                      <DateFilter
-                        preset={datePreset}
-                        onPreset={pickDatePreset}
-                        range={dateRange}
-                        onCustom={(r) => {
-                          setDateRange(r);
+
+                <>
+                  <div className="grid grid-cols-1 gap-2 border-t border-gray-100 pt-3 sm:grid-cols-2">
+                    {direction !== "INCOMING" && (
+                      <Select
+                        value={scope}
+                        onChange={(e) => {
+                          setScope(e.target.value);
                           setPage(1);
+                          qc.invalidateQueries({ queryKey: ["corr-tree"] });
                         }}
-                        showPresets={false}
-                      />
+                        aria-label="Phạm vi"
+                      >
+                        <option value="all">Tất cả</option>
+                        <option value="mine">Của tôi</option>
+                        <option value="department">Phòng tôi</option>
+                      </Select>
+                    )}
+                    <Select
+                      value={typeId}
+                      onChange={(e) => {
+                        setTypeId(e.target.value);
+                        setPage(1);
+                      }}
+                      aria-label="Lọc loại văn bản"
+                    >
+                      <option value="">Tất cả loại</option>
+                      {(types || []).map(
+                        (t: { id: string; code: string; name: string }) => (
+                          <option key={t.id} value={t.id}>
+                            {t.code} · {t.name}
+                          </option>
+                        ),
+                      )}
+                      </Select>
                     </div>
-                  </>
+                </>
+                {showFilters && (
+                  <div className="w-full border-t border-gray-100 pt-3">
+                    <p className="mb-1.5 text-xs font-medium text-gray-500">
+                      Lọc theo ngày phát hành
+                    </p>
+                    <DateFilter
+                      preset={datePreset}
+                      onPreset={pickDatePreset}
+                      range={dateRange}
+                      onCustom={(r) => {
+                        setDateRange(r);
+                        setPage(1);
+                      }}
+                      showPresets={false}
+                    />
+                  </div>
                 )}
-                <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-medium text-red-700">
+
+                <label className="flex w-fit py-4 cursor-pointer items-center gap-2 text-sm font-medium text-red-700">
                   <input
                     type="checkbox"
                     checked={importantOnly}
@@ -671,107 +641,107 @@ export default function CorrespondenceExplorer({
               </div>
 
               <div className="flex min-h-0 flex-1 flex-col">
-              {isError ? (
-                <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-                  <p className="font-semibold text-gray-900">
-                    Không tải được danh sách
-                  </p>
-                  <Button size="sm" onClick={() => refetch()}>
-                    Thử lại
-                  </Button>
-                </div>
-              ) : isLoading && !data ? (
-                <div className="flex-1 overflow-auto p-4">
-                  <TableSkeleton rows={12} cols={6} />
-                </div>
-              ) : (data?.items.length || 0) === 0 && !isFetching ? (
-                <div className="flex flex-1 items-center justify-center overflow-auto p-6">
-                <EmptyState
-                  title={
-                    searchQuery || filterCount > 0
-                      ? "Không tìm thấy văn bản"
-                      : "Chưa có công văn"
-                  }
-                  description={
-                    searchQuery || filterCount > 0
-                      ? "Hãy thử thay đổi từ khóa hoặc bộ lọc."
-                      : selection.month
-                        ? `Không có ${TYPE_LABEL[direction!].toLowerCase()} trong tháng ${selection.month}/${selection.year}.`
-                        : selection.year
-                          ? `Không có ${TYPE_LABEL[direction!].toLowerCase()} trong năm ${selection.year}.`
-                          : `Chưa có ${TYPE_LABEL[direction!].toLowerCase()} nào.`
-                  }
-                  actionLabel={
-                    searchQuery || filterCount > 0
-                      ? "Xóa bộ lọc"
-                      : "Thêm văn bản"
-                  }
-                  onAction={
-                    searchQuery || filterCount > 0 ? clearAll : undefined
-                  }
-                />
-                </div>
-              ) : (
-                <>
-                  {isFetching && (
-                    <p className="shrink-0 border-b border-gray-100 px-4 py-1 text-xs text-gray-400">
-                      Đang cập nhật…
+                {isError ? (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
+                    <p className="font-semibold text-gray-900">
+                      Không tải được danh sách
                     </p>
-                  )}
-                  {direction === "INCOMING" ? (
-                    <IncomingTable
-                      items={data?.items || []}
-                      base={base}
-                      onDelete={(d) => setDel(d)}
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={handleSort}
-                    />
-                  ) : direction === "OUTGOING" ? (
-                    <OutgoingTable
-                      items={data?.items || []}
-                      base={base}
-                      onDelete={(d) => setDel(d)}
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={handleSort}
-                    />
-                  ) : (
-                    <InternalTable
-                      items={data?.items || []}
-                      base={base}
-                      onDelete={(d) => setDel(d)}
-                      sortBy={sortBy}
-                      sortOrder={sortOrder}
-                      onSort={handleSort}
-                    />
-                  )}
-                  <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-4 py-2 text-sm">
-                    <span className="text-gray-500">
-                      Trang {data?.page} / {data?.total_pages} · {data?.total}{" "}
-                      văn bản
-                    </span>
-                    <span className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        disabled={page <= 1}
-                        onClick={() => setPage((p) => p - 1)}
-                        aria-label="Trang trước"
-                      >
-                        <ChevronLeft size={15} />
-                      </Button>
-                      <Button
-                        size="sm"
-                        disabled={!data || page >= (data.total_pages || 1)}
-                        onClick={() => setPage((p) => p + 1)}
-                        aria-label="Trang sau"
-                      >
-                        <ChevronRight size={15} />
-                      </Button>
-                    </span>
+                    <Button size="sm" onClick={() => refetch()}>
+                      Thử lại
+                    </Button>
                   </div>
-                </>
-              )}
+                ) : isLoading && !data ? (
+                  <div className="flex-1 overflow-auto p-4">
+                    <TableSkeleton rows={12} cols={6} />
+                  </div>
+                ) : (data?.items.length || 0) === 0 && !isFetching ? (
+                  <div className="flex flex-1 items-center justify-center overflow-auto p-6">
+                    <EmptyState
+                      title={
+                        searchQuery || filterCount > 0
+                          ? "Không tìm thấy văn bản"
+                          : "Chưa có công văn"
+                      }
+                      description={
+                        searchQuery || filterCount > 0
+                          ? "Hãy thử thay đổi từ khóa hoặc bộ lọc."
+                          : selection.month
+                            ? `Không có ${TYPE_LABEL[direction!].toLowerCase()} trong tháng ${selection.month}/${selection.year}.`
+                            : selection.year
+                              ? `Không có ${TYPE_LABEL[direction!].toLowerCase()} trong năm ${selection.year}.`
+                              : `Chưa có ${TYPE_LABEL[direction!].toLowerCase()} nào.`
+                      }
+                      actionLabel={
+                        searchQuery || filterCount > 0
+                          ? "Xóa bộ lọc"
+                          : "Thêm văn bản"
+                      }
+                      onAction={
+                        searchQuery || filterCount > 0 ? clearAll : undefined
+                      }
+                    />
+                  </div>
+                ) : (
+                  <>
+                    {isFetching && (
+                      <p className="shrink-0 border-b border-gray-100 px-4 py-1 text-xs text-gray-400">
+                        Đang cập nhật…
+                      </p>
+                    )}
+                    {direction === "INCOMING" ? (
+                      <IncomingTable
+                        items={data?.items || []}
+                        base={base}
+                        onDelete={(d) => setDel(d)}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        onSort={handleSort}
+                      />
+                    ) : direction === "OUTGOING" ? (
+                      <OutgoingTable
+                        items={data?.items || []}
+                        base={base}
+                        onDelete={(d) => setDel(d)}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        onSort={handleSort}
+                      />
+                    ) : (
+                      <InternalTable
+                        items={data?.items || []}
+                        base={base}
+                        onDelete={(d) => setDel(d)}
+                        sortBy={sortBy}
+                        sortOrder={sortOrder}
+                        onSort={handleSort}
+                      />
+                    )}
+                    <div className="flex shrink-0 items-center justify-between border-t border-gray-200 bg-white px-4 py-2 text-sm">
+                      <span className="text-gray-500">
+                        Trang {data?.page} / {data?.total_pages} · {data?.total}{" "}
+                        văn bản
+                      </span>
+                      <span className="flex gap-1.5">
+                        <Button
+                          size="sm"
+                          disabled={page <= 1}
+                          onClick={() => setPage((p) => p - 1)}
+                          aria-label="Trang trước"
+                        >
+                          <ChevronLeft size={15} />
+                        </Button>
+                        <Button
+                          size="sm"
+                          disabled={!data || page >= (data.total_pages || 1)}
+                          onClick={() => setPage((p) => p + 1)}
+                          aria-label="Trang sau"
+                        >
+                          <ChevronRight size={15} />
+                        </Button>
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}

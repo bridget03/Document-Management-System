@@ -184,6 +184,9 @@ export default function CorrespondenceDetail({
           <div className="mt-2 divide-y divide-gray-100">
             <InfoRow label="Số văn bản">{data.document_number}</InfoRow>
             <InfoRow label="Tiêu đề công văn">{data.title || "—"}</InfoRow>
+            {direction === "INTERNAL" && (
+              <InfoRow label="Vấn đề">{data.topic || "—"}</InfoRow>
+            )}
             <InfoRow label="Loại văn bản">
               {data.doc_type
                 ? `${data.doc_type.code} · ${data.doc_type.name}`
@@ -209,6 +212,9 @@ export default function CorrespondenceDetail({
             </InfoRow>
             {direction === "INCOMING" && (
               <InfoRow label="Đơn vị tiếp nhận">{data.signer || "—"}</InfoRow>
+            )}
+            {(direction === "OUTGOING" || direction === "INTERNAL") && (
+              <InfoRow label="Người ký">{data.signer || "—"}</InfoRow>
             )}
             <InfoRow label="Mức độ bảo mật">
               {data.security_level ? LEVEL_LABELS[data.security_level] : "—"}

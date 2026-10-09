@@ -426,7 +426,7 @@ def test_internal_department_scope_filters_by_recipient():
     for num, recv in (("NB/1", "Phòng Kế toán"), ("NB/2", "Phòng Nhân sự"),
                       ("NB/3", "Phòng Kế toán; Phòng Nhân sự")):
         r = c.post("/api/correspondence/internal", headers=ha, json={
-            "document_number": num, "recipient": recv,
+            "document_number": num, "recipient": recv, "signer": "Nguyễn Văn A",
             "document_type_id": t["id"], "issuing_department": "Cty X"})
         assert r.status_code == 200, r.text
     got = c.get("/api/correspondence/internal", headers=hs,

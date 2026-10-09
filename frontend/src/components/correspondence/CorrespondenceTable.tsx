@@ -36,6 +36,8 @@ interface Props {
 
 export type CorrSortKey =
   | "document_number"
+  | "title"
+  | "topic"
   | "document_type"
   | "party"
   | "signer"
@@ -49,6 +51,7 @@ const COL_WIDTHS: Record<string, number> = {
   docNo: 150,
   type: 200,
   party: 240,
+  signer: 160,
   signedDate: 130,
   issueDate: 130,
   status: 140,
@@ -156,6 +159,21 @@ export default function CorrespondenceTable({
               {sortableHeader(cfg.partyLabel.replace(" *", ""), "party")}
               <ResizeHandle onResizeStart={onResizeStart("party")} onReset={() => resetColumn("party")} />
             </th>
+            {dir === "OUTGOING" && (
+              <th
+                className="relative px-4 py-2.5 font-medium"
+                aria-sort={
+                  sortBy === "signer"
+                    ? sortOrder === "asc"
+                      ? "ascending"
+                      : "descending"
+                    : "none"
+                }
+              >
+                {sortableHeader("Người ký", "signer")}
+                <ResizeHandle onResizeStart={onResizeStart("signer")} onReset={() => resetColumn("signer")} />
+              </th>
+            )}
             <th
               className="relative px-4 py-2.5 font-medium"
               aria-sort={
@@ -248,6 +266,11 @@ export default function CorrespondenceTable({
                     );
                   })()}
                 </td>
+                {dir === "OUTGOING" && (
+                  <td className="whitespace-nowrap px-4 py-3 text-gray-600">
+                    {d.signer || "—"}
+                  </td>
+                )}
                 <td className="whitespace-nowrap px-4 py-3 text-gray-600">
                   {fmtDateVN(d.signed_date)}
                 </td>

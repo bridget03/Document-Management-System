@@ -102,8 +102,11 @@ def validate_payload(
         errors.append("Đơn vị phát hành không được để trống.")
     if direction == "INTERNAL" and not (data.get("recipient") or "").strip():
         errors.append("Bộ phận/người nhận không được để trống.")
-    if direction == "INCOMING" and not (data.get("signer") or "").strip():
-        errors.append("Vui lòng nhập đơn vị tiếp nhận.")
+    if not (data.get("signer") or "").strip():
+        if direction == "INCOMING":
+            errors.append("Vui lòng nhập đơn vị tiếp nhận.")
+        else:
+            errors.append("Vui lòng chọn/nhập người ký.")
     type_id = data.get("document_type_id")
     if not type_id:
         errors.append("Vui lòng chọn loại văn bản.")
@@ -176,6 +179,7 @@ def create_document(db: Session, direction: str, data: dict, user_id: str) -> Co
         direction=direction,
         document_number=number,
         title=(normalize_text((data.get("title") or "").strip()) or None),
+        topic=(normalize_text((data.get("topic") or "").strip()) or None),
         recipient=(normalize_text((data.get("recipient") or "").strip()) or None),
         sender=(normalize_text((data.get("sender") or "").strip()) or None),
         quantity=data.get("quantity"),
@@ -252,6 +256,7 @@ def apply_corr_filters(query, direction: str, q=None, type_id=None, signer=None,
             query = query.outerjoin(DocumentType, CD.document_type_id == DocumentType.id)
         query = query.filter(or_(
             CD.document_number.ilike(like),
+            CD.title.ilike(like),
             CD.recipient.ilike(like),
             CD.sender.ilike(like),
             CD.signer.ilike(like),

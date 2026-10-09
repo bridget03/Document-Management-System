@@ -39,6 +39,7 @@ class CorrespondenceDocument(Base):
     direction = Column(String(20), nullable=False, index=True)
     document_number = Column(String(255), nullable=False, index=True)
     title = Column(String(500), nullable=True)
+    topic = Column(String(500), nullable=True)
     recipient = Column(String(500), nullable=True)
     sender = Column(String(500), nullable=True)
     quantity = Column(Integer, nullable=True)

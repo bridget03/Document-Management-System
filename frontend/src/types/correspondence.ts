@@ -67,6 +67,7 @@ export interface CorrDoc {
   direction: string;
   document_number: string;
   title?: string | null;
+  topic?: string | null;
   recipient?: string | null;
   sender?: string | null;
   quantity?: number | null;
@@ -189,7 +190,7 @@ export const TEMPLATE_HEADERS: Record<Direction, string[]> = {
     'Ngày phát hành', 'Ngày hiệu lực', 'Ngày hết hiệu lực', 'Ghi chú',
   ],
   INTERNAL: [
-    'Số văn bản', 'Tiêu đề công văn', 'Bộ phận/người nhận', 'Đơn vị phát hành',
+    'Số văn bản', 'Tiêu đề công văn', 'Vấn đề', 'Bộ phận/người nhận', 'Đơn vị phát hành',
     'Loại văn bản', 'Mức độ bảo mật', 'Ngày ký', 'Ngày phát hành',
     'Ngày hiệu lực', 'Ngày hết hiệu lực', 'Ghi chú',
   ],
@@ -262,6 +263,7 @@ export function normalizeExcelRow(raw: Record<string, unknown>, direction: Direc
   };
   out.document_number = str(pick('Số văn bản'));
   out.title = str(pick('Tiêu đề công văn'));
+  out.topic = str(pick('Vấn đề'));
   // Nơi nhận/nơi gửi/phòng ban: chấp nhận phẩy (,), chấm phẩy (;) hoặc
   // xuống dòng, chuẩn hoá về dạng lưu trữ "A; B; C".
   const multi = (v: unknown) => {
@@ -316,7 +318,7 @@ export function validateRowClient(data: Record<string, unknown>, direction: Dire
   if (direction !== 'INCOMING' && !data.recipient)
     errs.push(direction === 'INTERNAL' ? 'Bộ phận/người nhận không được để trống.' : 'Nơi nhận không được để trống.');
   if (direction === 'INCOMING' && !data.sender) errs.push('Đơn vị phát hành không được để trống.');
-  if (!data.signer && direction === 'INCOMING') errs.push('Vui lòng nhập đơn vị tiếp nhận.');
+  if (!data.signer) errs.push(direction === 'INCOMING' ? 'Vui lòng nhập đơn vị tiếp nhận.' : 'Vui lòng chọn/nhập người ký.');
   if (!data.document_type_id) errs.push('Vui lòng chọn loại văn bản.');
   if (direction !== 'INCOMING' && !data.issuing_department) errs.push('Vui lòng nhập bộ phận phát hành.');
   return errs;
